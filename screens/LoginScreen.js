@@ -20,10 +20,15 @@ const LoginScreen = ({ navigation }) => {
 
   const login = async () => {
     try {
+      console.log(username, password)
       const response = await axios.post('http://localhost:3000/login', {
         username,
         password,
       });
+
+      console.log(response)
+
+      console.log('here')
 
       const { token } = response.data;
       await AsyncStorage.setItem('token', token);
