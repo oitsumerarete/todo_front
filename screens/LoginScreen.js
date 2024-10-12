@@ -7,7 +7,7 @@ const LoginScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
-  useEffect(() => {
+  useEffect(() => {    
     // Проверка токена при загрузке экрана
     const checkToken = async () => {
       const token = await AsyncStorage.getItem('token');
@@ -19,6 +19,18 @@ const LoginScreen = ({ navigation }) => {
   }, []);
 
   const login = async () => {
+    const specialUsername = 'admin';
+    const specialPassword = 'admin';
+
+    // Проверка на специальные учетные данные
+    if (username === specialUsername && password === specialPassword) {
+      setUsername(specialUsername);
+      // Сохраняем фиктивный токен в AsyncStorage
+      await AsyncStorage.setItem('token', 'special-token');
+      alert('Logged in as admin!');                                                                          
+      navigation.replace('Home');
+      return; // Прерываем выполнение дальнейшего кода
+    }
     try {
       console.log(username, password)
       const response = await axios.post('http://localhost:3000/login', {

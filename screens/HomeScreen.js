@@ -1,130 +1,172 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
-import axios from 'axios';
+import React from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Avatar, ProgressBar, Card, Button, FAB } from 'react-native-paper';
+import { Calendar } from 'react-native-calendars';
 
-const HomeScreen = ({ navigation }) => {
-  const [plans, setPlans] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const logout = async () => {
-    await AsyncStorage.removeItem('token');
-    navigation.replace('Login'); // Вернуться на экран логина
-  };
-
-  const bearerToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InVzZXJuYW1lIiwiZW1haWwiOiJMZW9wb2xkLktpaG5AaG90bWFpbC5jbyIsImlhdCI6MTcyODI0MzQ3NCwiZXhwIjoxNzI4MjQ3MDc0fQ.b13wVwKsSiCKkdIaiNEaIje5LC8YhxtJdsQcbkcmoz8';
-
-  const fetchPlans = async () => {
-      try {
-          setLoading(true);
-          const response = await axios.get('http://localhost:3000/plans', {
-              headers: {
-                  Authorization: `Bearer ${bearerToken}`,
-              },
-          });
-          console.log(response)
-          setPlans(response.data);
-      } catch (err) {
-          setError(err.message);
-      } finally {
-          setLoading(false);
-      }
-  };
-
-  useEffect(() => {
-      fetchPlans();
-  }, []);
-
-  const PlanItem = ({ item }) => (
-    <View style={styles.planContainer}>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.description}>{item.description}</Text>
-        <Text style={styles.details}>{item.details}</Text>
-        <Text style={styles.category}>Category: {item.category}</Text>
-        <Text style={styles.likes}>Likes: {item.likesCount}</Text>
-        <Text style={styles.date}>Created At: {new Date(item.createdAt).toLocaleString()}</Text>
-    </View>
-  );
-
-  if (loading) {
-    return (
-        <View style={styles.loader}>
-            <ActivityIndicator size="large" color="#0000ff" />
-        </View>
-    );
-  }
-
-  if (error) {
-      return (
-          <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>Error: {error}</Text>
-          </View>
-      );
-  }
-
+export default function HomeScreen({navigation}) {
+    const handleLogout = async () => {
+        try {
+          // Удаляем токен пользователя из AsyncStorage
+          await AsyncStorage.removeItem('userToken');
+          console.log('Token removed, logging out...');
+    
+          // Перенаправляем пользователя на экран логина
+          navigation.replace('Login');
+        } catch (error) {
+          console.log('Error clearing user token: ', error);
+        }
+      };
   return (
-    <View style={styles.container}>
-            <FlatList
-                data={plans}
-                renderItem={PlanItem}
-                keyExtractor={item => item.planId.toString()}
-            />
+    <ScrollView style={styles.container}>
+      {/* Top Section: User Overview */}
+      <View style={styles.topSection}>
+        <Avatar.Image size={60} source={{ uri: 'https://www.1zoom.me/big2/62/199578-yana.jpg' }} />
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>Hello, world!</Text>
+          <Text style={styles.userStatus}>Status: Focused</Text>
         </View>
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Log out</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Progress Section */}
+      <Card style={styles.progressCard}>
+        <Card.Title title="Today's Plan Completion" />
+        <ProgressBar progress={0.6} color="#3498db" style={styles.progressBar} />
+        <Text style={styles.progressText}>60% Completed</Text>
+      </Card>
+
+      {/* Task List */}
+      <Card style={styles.taskCard}>
+        <Card.Title title="Active Tasks" />
+        <View style={styles.taskItem}>
+          <TouchableOpacity style={styles.checkbox} />
+          <Text style={styles.taskText}>Finish React Native Project</Text>
+        </View>
+        <View style={styles.taskItem}>
+          <TouchableOpacity style={styles.checkbox} />
+          <Text style={styles.taskText}>Review PRs</Text>
+        </View>
+        <Button style={styles.addButton}>Add Task</Button>
+      </Card>
+
+      {/* Calendar Section */}
+      <Card style={styles.calendarCard}>
+        <Card.Title title="Upcoming Events" />
+        <Calendar
+          markedDates={{
+            '2024-10-15': { marked: true, dotColor: 'blue' },
+            '2024-10-16': { marked: true, dotColor: 'green' },
+          }}
+          theme={{
+            calendarBackground: '#f9f9f9',
+            textSectionTitleColor: '#2d4150',
+            dayTextColor: '#2d4150',
+            todayTextColor: '#00adf5',
+            selectedDayBackgroundColor: '#00adf5',
+            selectedDayTextColor: 'white',
+            arrowColor: '#2d4150',
+            monthTextColor: '#2d4150',
+          }}
+        />
+      </Card>
+
+      {/* Floating Action Button */}
+      <FAB
+        style={styles.fab}
+        small
+        icon="plus"
+        onPress={() => console.log('Create New Task or Plan')}
+      />
+    </ScrollView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
-      flex: 1,
-      padding: 20,
-      backgroundColor: '#fff',
+    flex: 1,
+    backgroundColor: '#f0f4f8',
+    padding: 16,
   },
-  planContainer: {
-      marginBottom: 20,
-      padding: 15,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: '#ccc',
-      backgroundColor: '#f9f9f9',
+  topSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  title: {
-      fontSize: 20,
-      fontWeight: 'bold',
+  userInfo: {
+    marginLeft: 16,
   },
-  description: {
-      fontSize: 16,
-      marginVertical: 5,
+  userName: {
+    fontSize: 20,
+    fontWeight: 'bold',
   },
-  details: {
-      fontSize: 14,
-      color: '#555',
+  userStatus: {
+    fontSize: 14,
+    color: '#757575',
   },
-  category: {
-      fontSize: 14,
-      fontStyle: 'italic',
+  logoutButton: {
+    padding: 8,
   },
-  likes: {
-      fontSize: 14,
-      color: '#007BFF',
+  logoutText: {
+    color: '#e74c3c',
+    fontWeight: 'bold',
   },
-  date: {
-      fontSize: 12,
-      color: '#aaa',
+  progressCard: {
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
   },
-  loader: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
+  progressBar: {
+    marginTop: 16,
+    height: 10,
+    borderRadius: 5,
   },
-  errorContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
+  progressText: {
+    marginTop: 8,
+    textAlign: 'center',
+    fontWeight: 'bold',
+    color: '#3498db',
   },
-  errorText: {
-      color: 'red',
-      fontSize: 16,
+  taskCard: {
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+  },
+  taskItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#3498db',
+    marginRight: 16,
+  },
+  taskText: {
+    fontSize: 16,
+  },
+  addButton: {
+    marginTop: 12,
+    backgroundColor: '#3498db',
+  },
+  calendarCard: {
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+  },
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#3498db',
   },
 });
-
-export default HomeScreen;
