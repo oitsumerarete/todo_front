@@ -8,7 +8,7 @@ export default function HomeScreen({navigation}) {
     const handleLogout = async () => {
         try {
           // Удаляем токен пользователя из AsyncStorage
-          await AsyncStorage.removeItem('userToken');
+          await AsyncStorage.removeItem('token');
           console.log('Token removed, logging out...');
     
           // Перенаправляем пользователя на экран логина
@@ -26,7 +26,7 @@ export default function HomeScreen({navigation}) {
           <Text style={styles.userName}>Hello, world!</Text>
           <Text style={styles.userStatus}>Status: Focused</Text>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+        <TouchableOpacity onPress={() => handleLogout()} style={styles.logoutButton}>
           <Text style={styles.logoutText}>Log out</Text>
         </TouchableOpacity>
       </View>

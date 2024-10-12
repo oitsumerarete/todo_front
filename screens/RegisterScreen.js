@@ -9,12 +9,14 @@ const RegisterScreen = ({ navigation }) => {
 
   const register = async () => {
     try {
-      const response = await axios.post('http://10.0.2.2:3000/register', {
+      console.log(username, email, password)
+      const response = await axios.post('http://localhost:3000/register', {
         username,
         email,
         password,
       });
-      if (response.data.success) {
+
+      if (response.data.userId) {
         alert('Registration successful! Please login.');
         navigation.navigate('Login');
       } else {
@@ -36,21 +38,22 @@ const RegisterScreen = ({ navigation }) => {
       <Text style={styles.title}>Register</Text>
       <TextInput
         style={styles.input}
-        placeholder="Username"
+        placeholder="username"
+        autoCapitalize="none"
         value={username}
         onChangeText={setUsername}
       />
       <TextInput
         style={styles.input}
-        placeholder="Email"
+        placeholder="email"
+        autoCapitalize="none"
         value={email}
         onChangeText={setEmail}
         keyboardType="Email-address"
-        autoCapitalize="none"
       />
       <TextInput
         style={styles.input}
-        placeholder="Password"
+        placeholder="password"
         value={password}
         onChangeText={setPassword}
         secureTextEntry

@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 const LoginScreen = ({ navigation }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   useEffect(() => {    
@@ -19,12 +19,12 @@ const LoginScreen = ({ navigation }) => {
   }, []);
 
   const login = async () => {
-    const specialUsername = 'admin';
+    const specialemail = 'admin';
     const specialPassword = 'admin';
 
     // Проверка на специальные учетные данные
-    if (username === specialUsername && password === specialPassword) {
-      setUsername(specialUsername);
+    if (email === specialemail && password === specialPassword) {
+      setEmail(specialemail);
       // Сохраняем фиктивный токен в AsyncStorage
       await AsyncStorage.setItem('token', 'special-token');
       alert('Logged in as admin!');                                                                          
@@ -32,9 +32,9 @@ const LoginScreen = ({ navigation }) => {
       return; // Прерываем выполнение дальнейшего кода
     }
     try {
-      console.log(username, password)
+      console.log(email, password)
       const response = await axios.post('http://localhost:3000/login', {
-        username,
+        email,
         password,
       });
 
@@ -58,13 +58,15 @@ const LoginScreen = ({ navigation }) => {
       <Text style={styles.title}>Login</Text>
       <TextInput
         style={styles.input}
-        placeholder="Username"
-        value={username}
-        onChangeText={setUsername}
+        placeholder="email"
+        autoCapitalize="none"
+        value={email}
+        onChangeText={setEmail}
       />
       <TextInput
         style={styles.input}
-        placeholder="Password"
+        placeholder="password"
+        autoCapitalize="none"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
