@@ -12,7 +12,7 @@ const LoginScreen = ({ navigation }) => {
     const checkToken = async () => {
       const token = await AsyncStorage.getItem('token');
       if (token) {
-        navigation.replace('Home'); // Если токен есть, перенаправляем на HomeScreen
+        navigation.replace('Main'); // Если токен есть, перенаправляем на HomeScreen
       }
     };
     checkToken();
@@ -28,7 +28,7 @@ const LoginScreen = ({ navigation }) => {
       // Сохраняем фиктивный токен в AsyncStorage
       await AsyncStorage.setItem('token', 'special-token');
       alert('Logged in as admin!');                                                                          
-      navigation.replace('Home');
+      navigation.replace('Main');
       return; // Прерываем выполнение дальнейшего кода
     }
     try {
@@ -46,7 +46,7 @@ const LoginScreen = ({ navigation }) => {
       await AsyncStorage.setItem('token', token);
       alert('Login successful!');
 
-      navigation.replace('Home');
+      navigation.replace('Main');
     } catch (error) {
       console.error('Login error', error);
       alert('Invalid credentials');
