@@ -162,7 +162,7 @@ const PlanStoreScreen = ({ route }) => {
               // handle onPress
             }}>
             <View style={styles.btn}>
-              <Text style={styles.btnText}>Schedule</Text>
+              <Text style={styles.btnText}>Start now!</Text>
             </View>
           </TouchableOpacity>
         </View>
