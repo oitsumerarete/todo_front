@@ -73,28 +73,6 @@ export default function HomeScreen({navigation}) {
                 </View>
                 <Button style={styles.addButton}>Add Task</Button>
             </Card>
-
-            {/* Calendar Section */}
-            <Card style={styles.calendarCard}>
-                <Card.Title title="Upcoming Events" />
-                <Calendar
-                    markedDates={{
-                        '2024-10-15': { marked: true, dotColor: 'blue' },
-                        '2024-10-16': { marked: true, dotColor: 'green' },
-                    }}
-                    theme={{
-                        calendarBackground: '#f9f9f9',
-                        textSectionTitleColor: '#2d4150',
-                        dayTextColor: '#2d4150',
-                        todayTextColor: '#00adf5',
-                        selectedDayBackgroundColor: '#00adf5',
-                        selectedDayTextColor: 'white',
-                        arrowColor: '#2d4150',
-                        monthTextColor: '#2d4150',
-                    }}
-                />
-            </Card>
-
             {/* Floating Action Button */}
             <FAB
                 style={styles.fab}

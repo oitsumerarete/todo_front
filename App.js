@@ -6,7 +6,7 @@ import LoginScreen from './screens/LoginScreen';
 import HomeScreen from './screens/HomeScreen';
 import AuthStack from './navigation/AuthStack';
 import RegisterScreen from './screens/RegisterScreen';
-import UsersPlanScreen from './screens/UsersPlanScreen';
+import UsersPlanScreen from './screens/UsersPlanScreen/UsersPlanScreen';
 import OriginalPlansStoreScreen from './screens/OriginalPlansStoreScreen';
 import PlanStoreScreen from './screens/PlanStoreScreen';
 import { LocaleConfig } from 'react-native-calendars';

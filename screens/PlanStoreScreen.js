@@ -13,10 +13,9 @@ import {
 import axios from 'axios';
 import Swiper from 'react-native-swiper';
 import OriginalTaskCard from './common/OriginalTaskCard';
+import API_URL from '../config';
 
 const { width } = Dimensions.get('window');
-
-const API_URL = 'http://localhost:3000/original/plans/';
 
 const PlanStoreScreen = ({ route }) => {
   const { planId } = route.params;
@@ -68,7 +67,7 @@ const PlanStoreScreen = ({ route }) => {
     try {
       setLoading(true);
       const token = await getBearerToken();
-      const response = await axios.get(`${API_URL}${planId}`, {
+      const response = await axios.get(`${API_URL}/original/plans/${planId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

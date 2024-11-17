@@ -2,8 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const API_URL = 'http://localhost:3000/original/plans'; // Adjust this based on your environment
+import API_URL from '../config';
 
 const AllPlansStoreScreen = ({ navigation }) => {
   const [plans, setPlans] = useState([]);
@@ -12,8 +11,7 @@ const AllPlansStoreScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredPlans, setFilteredPlans] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(''); // For filtering by category
-
-  const planCategories = ['All', 'Weight Loss', 'Muscle Mass', 'Endurance', 'Flexibility'];
+  const [planCategories, setPlanCategories] = useState([]);
 
   // Function to get the bearer token
   const getBearerToken = useCallback(async () => {
@@ -24,16 +22,15 @@ const AllPlansStoreScreen = ({ navigation }) => {
     return token;
   }, []);
 
-  // Fetch plans from the API
   const fetchPlans = useCallback(async () => {
     try {
       setLoading(true);
       const token = await getBearerToken();
-      const response = await axios.get(API_URL, {
+      const response = await axios.get(`${API_URL}/original/plans`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setPlans(response.data);
-      setFilteredPlans(response.data); // Initialize filtered plans
+      setFilteredPlans(response.data);
+      setPlanCategories(["All", ...response.data.map((plan) => plan.category)]);
     } catch (err) {
       if (err.response?.status === 401) {
         setError('Session expired. Please log in again.');
