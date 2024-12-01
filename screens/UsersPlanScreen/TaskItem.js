@@ -1,15 +1,18 @@
-import React, { useState, useCallback } from 'react';
+// TaskItem.js
+
+import React, { useState, memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { RadioButton } from 'react-native-paper';
-import API_URL from '../../config'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-const TaskItem = ({ item, drag, isActive, isToday, onStatusChange }) => {
-  const [isChecked, setIsChecked] = useState(item.status === 'done'); // Initialize from item.status
+import API_URL from '../../config';
+
+const TaskItem = memo(({ item, drag, isActive, isToday, onStatusChange }) => {
+  const [isChecked, setIsChecked] = useState(item.status === 'done');
 
   const handleChangeTaskStatus = async () => {
-    if (!isToday) return; // Блокируем изменения для задач не сегодняшнего дня
+    if (!isToday) return;
 
     const newStatus = isChecked ? 'pending' : 'done';
     setIsChecked(!isChecked);
@@ -19,13 +22,17 @@ const TaskItem = ({ item, drag, isActive, isToday, onStatusChange }) => {
 
     try {
       const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        console.error('No token found');
+        return;
+      }
       await axios.put(
         `${API_URL}/plans/tasks/${item.taskId}`,
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );
     } catch (err) {
-      console.log(err);
+      console.error('Error updating task status:', err);
     }
   };
 
@@ -34,7 +41,7 @@ const TaskItem = ({ item, drag, isActive, isToday, onStatusChange }) => {
       style={[
         styles.taskItem,
         { backgroundColor: isActive ? '#e0e0e0' : '#ffffff' },
-        !isToday && styles.disabledTask, // Применяем прозрачность для задач не сегодняшнего дня
+        !isToday && styles.disabledTask,
       ]}
       onLongPress={drag}
       delayLongPress={150}
@@ -46,22 +53,21 @@ const TaskItem = ({ item, drag, isActive, isToday, onStatusChange }) => {
           <Text style={styles.taskTime}>
             {item.startTime} - {item.endTime}
           </Text>
-          {item.isMandatory && <Text style={styles.mandatory}>Mandatory Task</Text>}
+          {item.isMandatory && (
+            <Text style={styles.mandatory}>Mandatory Task</Text>
+          )}
         </View>
         <View style={styles.radioButtonContainer}>
           <RadioButton
             status={isChecked ? 'checked' : 'unchecked'}
             onPress={handleChangeTaskStatus}
-            disabled={!isToday} // Отключаем радиокнопку для задач не сегодняшнего дня
-            style={[styles.radioButton, { border: '1px' }]}
+            disabled={!isToday}
           />
         </View>
       </View>
     </TouchableOpacity>
   );
-};
-
-
+});
 
 export default TaskItem;
 
@@ -70,17 +76,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ccc', // Color of the border
     borderRadius: 12, // Match the border radius of the radio button
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   taskItem: {
     padding: 10,
     borderRadius: 5,
     marginVertical: 5,
-    opacity: 1, // Полная видимость по умолчанию
+    opacity: 1,
   },
   disabledTask: {
-    opacity: 0.5, // Уменьшенная прозрачность для недоступных задач
+    opacity: 0.5,
   },
-  
   taskContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -103,9 +110,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     marginTop: 4,
-  },
-  radioButton: {
-    marginRight: 8,
   },
   mandatory: {
     fontSize: 12,

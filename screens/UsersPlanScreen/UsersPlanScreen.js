@@ -1,7 +1,6 @@
 // PlanScreen.js
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,72 +16,115 @@ import DraggableFlatList from 'react-native-draggable-flatlist';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { FAB } from 'react-native-paper';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { format } from 'date-fns';
+
 import TaskItem from './TaskItem';
 import API_URL from '../../config';
-import DateTimePicker from '@react-native-community/datetimepicker';
 
 const PlanScreen = () => {
   const [tasksByDate, setTasksByDate] = useState({});
   const [selectedDate, setSelectedDate] = useState(null);
   const [markedDates, setMarkedDates] = useState({});
-  const [plan, setPlan] = useState([]);
+  const [plan, setPlan] = useState({});
   const [showPicker, setShowPicker] = useState(false);
-  const [error, setError] = useState();
-  const [pickerMode, setPickerMode] = useState('date'); // 'date' or 'time'
-  const [pickerField, setPickerField] = useState(null); // Whi
+  const [pickerMode, setPickerMode] = useState('date');
+  const [pickerField, setPickerField] = useState(null);
+
+  // Function to get date in 'YYYY-MM-DD' format
+  const getFormattedDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayDate = getFormattedDate(new Date());
+
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
-    date: new Date(), // Дата задачи по умолчанию — выбранная дата
+    date: todayDate,
     startTime: new Date(),
     endTime: new Date(),
     isMandatory: false,
   });
-  const [loading, setLoading] = useState(false);
   const [taskSummaryByDate, setTaskSummaryByDate] = useState({});
-  const bottomSheetRef = useRef(null); // Bottom sheet ref
-  const [today, setToday] = useState(new Date().toISOString().split('T')[0]);
+  const bottomSheetRef = useRef(null);
+  const [today, setToday] = useState(todayDate);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setToday(getFormattedDate(new Date()));
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const handleCloseBottomSheet = () => {
-    bottomSheetRef.current?.close(); // Collapse the bottom sheet (hide it)
+    bottomSheetRef.current?.close();
   };
 
   const handleInputChange = (field, value) => {
     setNewTask((prev) => ({ ...prev, [field]: value }));
   };
-  
+
   const handleCreateTask = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      console.log(newTask)
+      if (!token) {
+        console.error('No token found');
+        return;
+      }
+
+      const taskData = {
+        ...newTask,
+        planId: plan.planId,
+        startTime: newTask.startTime.toLocaleTimeString([], { hour12: false }),
+        endTime: newTask.endTime.toLocaleTimeString([], { hour12: false }),
+      };
+
       const response = await axios.post(
         `${API_URL}/plans/${plan.planId}/tasks`,
-        { ...newTask, planId: plan.planId, endTime: newTask.endTime.toLocaleTimeString(), startTime: newTask.startTime.toLocaleTimeString() },
+        taskData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       const createdTask = response.data;
+      const dateKey = newTask.date;
 
-      setTasksByDate((prev) => {
-        const updatedTasks = { ...prev };
-        const date = createdTask.date.split('T')[0];
-    
-        if (!updatedTasks[date]) {
-            updatedTasks[date] = []; // Initialize a new array if it doesn't exist
-        }
-        updatedTasks[date] = [...updatedTasks[date], createdTask]; // Ensure a new array instance
-        return updatedTasks;
-      });    
-
-      setMarkedDates((prev) => ({
+      // Update tasksByDate
+      setTasksByDate((prev) => ({
         ...prev,
-        [newTask.date]: { marked: true },
+        [dateKey]: prev[dateKey] ? [...prev[dateKey], createdTask] : [createdTask],
       }));
 
+      // Update markedDates and task summaries
+      setMarkedDates((prev) => ({
+        ...prev,
+        [dateKey]: { marked: true },
+      }));
+
+      setTaskSummaryByDate((prev) => {
+        const isMandatoryNotDone =
+          createdTask.isMandatory && createdTask.status !== 'done' ? 1 : 0;
+        return {
+          ...prev,
+          [dateKey]: {
+            totalTasks: (prev[dateKey]?.totalTasks || 0) + 1,
+            mandatoryNotDone:
+              (prev[dateKey]?.mandatoryNotDone || 0) + isMandatoryNotDone,
+          },
+        };
+      });
+
+      // Close the bottom sheet and reset newTask
       handleCloseBottomSheet();
       setNewTask({
         title: '',
         description: '',
-        date: selectedDate,
+        date: todayDate, // Set date to today in local time
         startTime: new Date(),
         endTime: new Date(),
         isMandatory: false,
@@ -92,86 +134,58 @@ const PlanScreen = () => {
     }
   };
 
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setToday(new Date().toISOString().split('T')[0]);
-    }, 60000); // Обновляем каждые 60 секунд на случай смены дня
-
-    return () => clearInterval(interval);
-  }, []);
-
-
-  const getBearerToken = useCallback(async () => {
-    const token = await AsyncStorage.getItem('token');
-    if (!token) {
-      throw new Error('No token found');
-    }
-    return token;
-  }, []);
-  
-  const fetchPlan = useCallback(async () => {
+  const fetchPlan = async () => {
     try {
-      let tasks = [];
-      const tasksByDateTemp = {};
-      const markedDatesTemp = {};
-      const taskSummaryByDateTemp = {};
-  
-      const token = await getBearerToken();
-  
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        console.error('No token found');
+        return;
+      }
+
       const response = await axios.get(`${API_URL}/plans/user`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-  
-      tasks = response.data?.tasks;
-  
+
+      const { planId, title, description } = response.data;
+      const tasks = response.data?.tasks || [];
+
+      const tasksByDateTemp = {};
+      const markedDatesTemp = {};
+      const taskSummaryByDateTemp = {};
+
       tasks.forEach((task) => {
-        const date = task.date.split('T')[0];
+        const dateObj = new Date(task.date);
+        const date = getFormattedDate(dateObj);
         if (!tasksByDateTemp[date]) {
           tasksByDateTemp[date] = [];
         }
         tasksByDateTemp[date].push(task);
         markedDatesTemp[date] = { marked: true };
-  
-        // Initialize counters for the date if not already initialized
+
         if (!taskSummaryByDateTemp[date]) {
           taskSummaryByDateTemp[date] = {
             mandatoryNotDone: 0,
             totalTasks: 0,
           };
         }
-  
-        // Increment counters
+
         taskSummaryByDateTemp[date].totalTasks++;
         if (task.isMandatory && task.status !== 'done') {
           taskSummaryByDateTemp[date].mandatoryNotDone++;
         }
       });
-  
-      setPlan(response.data);
+
+      setPlan({ planId, title, description });
       setTasksByDate(tasksByDateTemp);
       setMarkedDates(markedDatesTemp);
-  
-      // Store task summary
       setTaskSummaryByDate(taskSummaryByDateTemp);
-  
-      // Set the initial selected date to today if it exists in tasks
-      const today = new Date().toISOString().split('T')[0];
-      if (tasksByDateTemp[today]) {
-        setSelectedDate(today);
-      }
-    } catch (err) {
-      console.log(err);
-      if (err.response?.status === 401) {
-        setError('Session expired. Please log in again.');
-      } else {
-        setError(err.message || 'Something went wrong');
-      }
-    } finally {
-      setLoading(false);
+
+      const todayDate = getFormattedDate(new Date());
+      setSelectedDate(tasksByDateTemp[todayDate] ? todayDate : null);
+    } catch (error) {
+      console.error('Error fetching plan:', error);
     }
-  }, [getBearerToken]);
-  
+  };
 
   useEffect(() => {
     fetchPlan();
@@ -181,82 +195,107 @@ const PlanScreen = () => {
     setSelectedDate(day.dateString);
   };
 
-  const renderItem = ({ item, index, drag, isActive }) => (
-    <TaskItem
-      item={item}
-      drag={drag}
-      isActive={isActive}
-      isToday={selectedDate === today} // Проверяем, относится ли задача к сегодняшнему дню
-      onStatusChange={(taskId, isMandatory, newStatus) => {
-        if (selectedDate === today) {
-          setTaskSummaryByDate((prevSummary) => {
-            const date = item.date.split('T')[0];
-            const updatedSummary = { ...prevSummary };
-  
-            if (newStatus === 'done' && isMandatory) {
-              updatedSummary[date].mandatoryNotDone -= 1;
-            } else if (newStatus === 'pending' && isMandatory) {
-              updatedSummary[date].mandatoryNotDone += 1;
-            }
-  
-            return updatedSummary;
-          });
-  
-          setTasksByDate((prevTasks) => {
-            const date = item.date.split('T')[0];
-            const updatedTasks = { ...prevTasks };
-            const updatedTaskList = updatedTasks[date].map((task) =>
-              task.taskId === taskId ? { ...task, status: newStatus } : task
-            );
-  
-            updatedTasks[date] = updatedTaskList;
-            return updatedTasks;
-          });
-        }
-      }}
-    />
-  );
-
-  const onDragEnd = ({ data }) => {
-    // Update the order of tasks in tasksByDate for the selected date
-    setTasksByDate((prevTasksByDate) => ({
-      ...prevTasksByDate,
-      [selectedDate]: data,
-    }));
+  const handleOpenBottomSheet = () => {
+    bottomSheetRef.current?.expand();
   };
-
-  const tasksForSelectedDate = useMemo(
-    () => tasksByDate[selectedDate] || [],
-    [tasksByDate, selectedDate]
-  );
-
-  console.log(tasksForSelectedDate)
-
-  // Function to handle opening the bottom sheet
-  const handleOpenBottomSheet = useCallback(() => {
-      bottomSheetRef.current?.expand();
-  }, []);
 
   const showDatePicker = (field) => {
     setPickerMode(field === 'date' ? 'date' : 'time');
     setPickerField(field);
     setShowPicker(true);
   };
+
   const handlePickerChange = (event, selectedValue) => {
-    setShowPicker(false);
-
-    if (selectedValue) {
-      const updatedValue =
-        pickerMode === 'date'
-          ? selectedValue.toISOString().split('T')[0]
-          : selectedValue;
-
-      setNewTask((prev) => ({
-        ...prev,
-        [pickerField]: updatedValue,
-      }));
+    if (event.type === 'set' && selectedValue) {
+      if (pickerMode === 'date') {
+        const updatedValue = getFormattedDate(selectedValue);
+        setNewTask((prev) => ({
+          ...prev,
+          [pickerField]: updatedValue,
+        }));
+      } else {
+        setNewTask((prev) => ({
+          ...prev,
+          [pickerField]: selectedValue,
+        }));
+      }
     }
+    setShowPicker(false);
   };
+
+  const isSameDay = (dateString1, dateString2) => {
+    return dateString1 === dateString2;
+  };
+
+  const onStatusChange = (taskId, isMandatory, newStatus, taskDate) => {
+    setTaskSummaryByDate((prevSummary) => {
+      const date = taskDate;
+      const updatedSummary = { ...prevSummary };
+
+      if (isMandatory) {
+        if (newStatus === 'done') {
+          updatedSummary[date].mandatoryNotDone -= 1;
+        } else if (newStatus !== 'done') {
+          updatedSummary[date].mandatoryNotDone += 1;
+        }
+      }
+
+      return updatedSummary;
+    });
+
+    setTasksByDate((prevTasks) => {
+      const date = taskDate;
+      console.log('date123', date)
+      const updatedTasks = {
+        ...prevTasks,
+        [date]: prevTasks[date].map((task) =>
+          task.taskId === taskId ? { ...task, status: newStatus } : task
+        ),
+      };
+      return updatedTasks;
+    });
+  };
+
+  const renderItem = ({ item, index, drag, isActive }) => {
+    const itemDateLocal = new Date(item.date).toLocaleDateString('en-CA');
+  
+    return (
+      <TaskItem
+        item={item}
+        drag={drag}
+        isActive={isActive}
+        isToday={isSameDay(itemDateLocal, todayDate)}
+        onStatusChange={(taskId, isMandatory, newStatus) =>
+          onStatusChange(taskId, isMandatory, newStatus, new Date(item.date).toLocaleDateString('en-CA'))
+        }
+      />
+    );
+  };
+
+  const onDragEnd = ({ data }) => {
+    setTasksByDate((prevTasksByDate) => ({
+      ...prevTasksByDate,
+      [selectedDate]: data,
+    }));
+  };
+
+  const tasksForSelectedDate = tasksByDate[selectedDate] || [];
+
+  const mergedMarkedDates = { ...markedDates };
+  Object.entries(taskSummaryByDate).forEach(([date, summary]) => {
+    mergedMarkedDates[date] = {
+      ...mergedMarkedDates[date],
+      dotColor: summary.mandatoryNotDone > 0 ? 'red' : 'green',
+    };
+  });
+
+  if (selectedDate) {
+    mergedMarkedDates[selectedDate] = {
+      ...(mergedMarkedDates[selectedDate] || {}),
+      selected: true,
+      selectedColor: '#00adf5',
+    };
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -268,24 +307,9 @@ const PlanScreen = () => {
 
       {/* Calendar */}
       <Calendar
-        current={selectedDate || new Date().toISOString().split('T')[0]}
+        current={selectedDate || todayDate}
         onDayPress={handleDayPress}
-        markedDates={{
-          ...markedDates,
-          [selectedDate]: {
-            selected: true,
-            selectedColor: '#00adf5',
-            marked: markedDates[selectedDate]?.marked,
-          },
-          ...Object.entries(taskSummaryByDate).reduce((acc, [date, summary]) => {
-            acc[date] = {
-              ...markedDates[date],
-              dotColor: summary.mandatoryNotDone > 0 ? 'red' : 'green', // Example: Red for pending tasks
-              customText: `${summary.mandatoryNotDone} left`, // Custom data
-            };
-            return acc;
-          }, {}),
-        }}
+        markedDates={mergedMarkedDates}
         theme={{
           selectedDayBackgroundColor: '#00adf5',
           todayTextColor: '#00adf5',
@@ -293,18 +317,19 @@ const PlanScreen = () => {
         }}
       />
 
-
       {/* Tasks for the Selected Day */}
       {selectedDate && (
         <View style={styles.taskListContainer}>
           <Text style={styles.tasksHeader}>
-            Tasks for {selectedDate} ({taskSummaryByDate[selectedDate]?.mandatoryNotDone || 0} mandatory left)
+            Tasks for {format(selectedDate, 'dd.MM')} (
+            {taskSummaryByDate[selectedDate]?.mandatoryNotDone || 0} mandatory
+            left)
           </Text>
 
           <DraggableFlatList
             data={tasksForSelectedDate}
             renderItem={renderItem}
-            keyExtractor={(item) => item.taskId.toString() + item.createdAt}
+            keyExtractor={(item) => item.taskId.toString()}
             onDragEnd={onDragEnd}
           />
         </View>
@@ -321,8 +346,8 @@ const PlanScreen = () => {
       <BottomSheet ref={bottomSheetRef} snapPoints={['72%']} index={-1}>
         <View style={styles.contentContainer}>
           <Text style={styles.header}>Create New Task</Text>
-          
-          {/* Название задачи */}
+
+          {/* Task Title */}
           <View style={styles.fieldContainer}>
             <Text style={styles.label}>Task Title</Text>
             <TextInput
@@ -333,7 +358,7 @@ const PlanScreen = () => {
             />
           </View>
 
-          {/* Описание задачи */}
+          {/* Task Description */}
           <View style={styles.fieldContainer}>
             <Text style={styles.label}>Description</Text>
             <TextInput
@@ -345,12 +370,14 @@ const PlanScreen = () => {
             />
           </View>
 
-          {/* Дата и время */}
+          {/* Date and Time */}
           <View style={styles.fieldContainer}>
             <Text style={styles.label}>Date</Text>
             <TouchableOpacity onPress={() => showDatePicker('date')}>
               <Text style={styles.dateText}>
-                {newTask.date ? new Date(newTask.date).toDateString() : 'Select Date'}
+                {newTask.date
+                  ? new Date(newTask.date).toDateString()
+                  : 'Select Date'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -360,7 +387,10 @@ const PlanScreen = () => {
               <TouchableOpacity onPress={() => showDatePicker('startTime')}>
                 <Text style={styles.dateText}>
                   {newTask.startTime
-                    ? new Date(newTask.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    ? newTask.startTime.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
                     : 'Select Time'}
                 </Text>
               </TouchableOpacity>
@@ -370,14 +400,17 @@ const PlanScreen = () => {
               <TouchableOpacity onPress={() => showDatePicker('endTime')}>
                 <Text style={styles.dateText}>
                   {newTask.endTime
-                    ? new Date(newTask.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    ? newTask.endTime.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
                     : 'Select Time'}
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Обязательность */}
+          {/* Is Mandatory */}
           <View style={styles.switchContainer}>
             <Text style={styles.label}>Is Mandatory?</Text>
             <Switch
@@ -386,14 +419,21 @@ const PlanScreen = () => {
             />
           </View>
 
-          {/* Кнопка создания задачи */}
+          {/* Create Task Button */}
           <Button title="Create Task" onPress={handleCreateTask} />
         </View>
       </BottomSheet>
+
       {/* DateTimePicker */}
       {showPicker && (
         <DateTimePicker
-          value={pickerField === 'date' ? new Date(newTask.date) : newTask[pickerField]}
+          value={
+            pickerField === 'date'
+              ? new Date(newTask.date)
+              : newTask[pickerField] instanceof Date
+              ? newTask[pickerField]
+              : new Date()
+          }
           mode={pickerMode}
           is24Hour
           display="default"
@@ -407,6 +447,18 @@ const PlanScreen = () => {
 export default PlanScreen;
 
 const styles = StyleSheet.create({
+  container: { flex: 1 },
+  planDescription: { padding: 16, backgroundColor: '#f7f7f7' },
+  planTitle: { fontSize: 24, fontWeight: 'bold' },
+  planDetails: { fontSize: 16, marginTop: 8 },
+  taskListContainer: { flex: 1, padding: 16 },
+  tasksHeader: { fontSize: 18, marginBottom: 8, fontWeight: 'bold' },
+  fab: {
+    position: 'absolute',
+    left: 16,
+    bottom: 16,
+    backgroundColor: '#00adf5',
+  },
   contentContainer: {
     padding: 16,
     backgroundColor: '#ffffff',
@@ -458,15 +510,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  container: { flex: 1 },
-  planDescription: { padding: 16, backgroundColor: '#f7f7f7' },
-  planTitle: { fontSize: 24, fontWeight: 'bold' },
-  planDetails: { fontSize: 16, marginTop: 8 },
-  taskListContainer: { flex: 1, padding: 16 },
-  tasksHeader: { fontSize: 18, marginBottom: 8, fontWeight: 'bold' },
-  fab: { position: 'absolute', right: 16, bottom: 16, backgroundColor: '#00adf5' },
-  contentContainer: { flex: 1, padding: 16 },
-  header: { fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
-  input: { borderWidth: 1, borderColor: '#ddd', padding: 10, borderRadius: 5, marginBottom: 10 },
-  checkboxContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
 });
