@@ -49,10 +49,18 @@ const PlanScreen = () => {
     startTime: new Date(),
     endTime: new Date(),
     isMandatory: false,
+    isMeal: false,
   });
   const [taskSummaryByDate, setTaskSummaryByDate] = useState({});
   const bottomSheetRef = useRef(null);
   const [today, setToday] = useState(todayDate);
+  const [isMealToday, setIsMealToday] = useState(false);
+  const [mealsStat, setMealsStat] = useState([
+    { label: "ккал", value: 0, color: "#3b6b3b" },
+    { label: "белки", value: 0, color: "#263d26" },
+    { label: "углеводы", value: 0, color: "#3d645b" },
+    { label: "жиры", value: 0, color: "#6a7346" }
+  ])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -245,7 +253,6 @@ const PlanScreen = () => {
 
     setTasksByDate((prevTasks) => {
       const date = taskDate;
-      console.log('date123', date)
       const updatedTasks = {
         ...prevTasks,
         [date]: prevTasks[date].map((task) =>
@@ -280,6 +287,34 @@ const PlanScreen = () => {
   };
 
   const tasksForSelectedDate = tasksByDate[selectedDate] || [];
+
+  useEffect(() => {
+    let kcal = 0;
+    let proteins = 0;
+    let fats = 0;
+    let carbs = 0;
+
+    tasksForSelectedDate.map((task) => {
+      if (task.calories !== null
+        && task.proteins !== null
+        && task.fats !== null
+        && task.carbs !== null) {
+        kcal += task.calories;
+        proteins += task.proteins;
+        fats += task.fats;
+        carbs += task.carbs;
+
+        setIsMealToday(true);
+      }
+    })
+
+    setMealsStat([
+      { label: "ккал", value: kcal, color: "#3b6b3b" },
+      { label: "белки", value: proteins, color: "#263d26" },
+      { label: "жиры", value: fats, color: "#6a7346" },
+      { label: "углеводы", value: carbs, color: "#3d645b" }
+    ])
+  }, [tasksByDate[selectedDate]])
 
   const mergedMarkedDates = { ...markedDates };
   Object.entries(taskSummaryByDate).forEach(([date, summary]) => {
@@ -318,13 +353,25 @@ const PlanScreen = () => {
       />
 
       {/* Tasks for the Selected Day */}
-      {selectedDate && (
+      {selectedDate && 
         <View style={styles.taskListContainer}>
           <Text style={styles.tasksHeader}>
-            Tasks for {format(selectedDate, 'dd.MM')} (
-            {taskSummaryByDate[selectedDate]?.mandatoryNotDone || 0} mandatory
-            left)
+            Задачи на {format(selectedDate, 'dd.MM')}
+            (
+            {taskSummaryByDate[selectedDate]?.mandatoryNotDone || 0} обязательных осталось)
           </Text>
+
+          {isMealToday && 
+            <View style={styles.containerPCF}>
+              {mealsStat.map((stat, index) => (
+                <View key={index} style={styles.statBox}>
+                  <View style={[styles.bar, { backgroundColor: stat.color }]} />
+                  <Text style={styles.value}>{stat.value}</Text>
+                  <Text style={styles.label}>{stat.label}</Text>
+                </View>
+              ))}
+            </View>
+          }
 
           <DraggableFlatList
             data={tasksForSelectedDate}
@@ -333,7 +380,7 @@ const PlanScreen = () => {
             onDragEnd={onDragEnd}
           />
         </View>
-      )}
+      }
 
       <FAB
         style={styles.fab}
@@ -345,14 +392,14 @@ const PlanScreen = () => {
       {/* Bottom Sheet for Task Creation */}
       <BottomSheet ref={bottomSheetRef} snapPoints={['72%']} index={-1}>
         <View style={styles.contentContainer}>
-          <Text style={styles.header}>Create New Task</Text>
+          <Text style={styles.header}>Создать задачу</Text>
 
           {/* Task Title */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Task Title</Text>
+            <Text style={styles.label}>Название задачи</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter task title"
+              placeholder="Введите название задачи"
               value={newTask.title}
               onChangeText={(text) => handleInputChange('title', text)}
             />
@@ -360,10 +407,10 @@ const PlanScreen = () => {
 
           {/* Task Description */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Description</Text>
+            <Text style={styles.label}>Описание</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Enter task description"
+              placeholder="Введите подробности задачи"
               multiline
               value={newTask.description}
               onChangeText={(text) => handleInputChange('description', text)}
@@ -372,7 +419,7 @@ const PlanScreen = () => {
 
           {/* Date and Time */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Date</Text>
+            <Text style={styles.label}>Дата</Text>
             <TouchableOpacity onPress={() => showDatePicker('date')}>
               <Text style={styles.dateText}>
                 {newTask.date
@@ -383,7 +430,7 @@ const PlanScreen = () => {
           </View>
           <View style={styles.timeContainer}>
             <View style={styles.timeField}>
-              <Text style={styles.label}>Start Time</Text>
+              <Text style={styles.label}>Начало</Text>
               <TouchableOpacity onPress={() => showDatePicker('startTime')}>
                 <Text style={styles.dateText}>
                   {newTask.startTime
@@ -396,7 +443,7 @@ const PlanScreen = () => {
               </TouchableOpacity>
             </View>
             <View style={styles.timeField}>
-              <Text style={styles.label}>End Time</Text>
+              <Text style={styles.label}>Конец</Text>
               <TouchableOpacity onPress={() => showDatePicker('endTime')}>
                 <Text style={styles.dateText}>
                   {newTask.endTime
@@ -412,15 +459,15 @@ const PlanScreen = () => {
 
           {/* Is Mandatory */}
           <View style={styles.switchContainer}>
-            <Text style={styles.label}>Is Mandatory?</Text>
+            <Text style={styles.label}>Прием пищи</Text>
             <Switch
-              value={newTask.isMandatory}
-              onValueChange={(value) => handleInputChange('isMandatory', value)}
+              value={newTask.isMeal}
+              onValueChange={(value) => handleInputChange('isMeal', value)}
             />
           </View>
 
           {/* Create Task Button */}
-          <Button title="Create Task" onPress={handleCreateTask} />
+          <Button title="Создать задачу" onPress={handleCreateTask} />
         </View>
       </BottomSheet>
 
@@ -447,6 +494,39 @@ const PlanScreen = () => {
 export default PlanScreen;
 
 const styles = StyleSheet.create({
+  containerPCF: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 10,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statBox: {
+    alignItems: "center",
+    width: "22%", // Adjust width for spacing
+  },
+  bar: {
+    width: "100%",
+    height: 5,
+    borderRadius: 2.5,
+    marginBottom: 8,
+  },
+  value: {
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  label: {
+    fontSize: 14,
+    color: "#555",
+    textAlign: "center",
+  },
   container: { flex: 1 },
   planDescription: { padding: 16, backgroundColor: '#f7f7f7' },
   planTitle: { fontSize: 24, fontWeight: 'bold' },

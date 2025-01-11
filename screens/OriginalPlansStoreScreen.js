@@ -30,7 +30,7 @@ const AllPlansStoreScreen = ({ navigation }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setFilteredPlans(response.data);
-      setPlanCategories(["All", ...response.data.map((plan) => plan.category)]);
+      setPlanCategories(["Все", ...new Set(response.data.map((plan) => plan.category))]);
     } catch (err) {
       if (err.response?.status === 401) {
         setError('Session expired. Please log in again.');
@@ -113,7 +113,7 @@ const AllPlansStoreScreen = ({ navigation }) => {
       {/* Search Bar */}
       <TextInput
         style={styles.searchInput}
-        placeholder="Search for a plan..."
+        placeholder="Найди свой план!"
         value={searchQuery}
         onChangeText={setSearchQuery}
       />

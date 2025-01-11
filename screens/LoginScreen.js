@@ -32,15 +32,10 @@ const LoginScreen = ({ navigation }) => {
       return; // Прерываем выполнение дальнейшего кода
     }
     try {
-      console.log(email, password)
       const response = await axios.post('http://localhost:3000/login', {
         email,
         password,
       });
-
-      console.log(response)
-
-      console.log('here')
 
       const { token } = response.data;
       await AsyncStorage.setItem('token', token);

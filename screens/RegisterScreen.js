@@ -9,7 +9,6 @@ const RegisterScreen = ({ navigation }) => {
 
   const register = async () => {
     try {
-      console.log(username, email, password)
       const response = await axios.post('http://localhost:3000/register', {
         username,
         email,

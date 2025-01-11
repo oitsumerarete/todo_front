@@ -21,11 +21,11 @@ const PlanStoreScreen = ({ route }) => {
   const { planId } = route.params;
   const swiper = useRef();
   const [currentDay, setCurrentDay] = useState(0); // Tracks the selected day index (e.g., first day is 0)
-  console.log('currentDay', currentDay)
   const [currentDayTasks, setCurrentDayTasks] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState([]);
+  const [planTitle, setPlanTitle] = useState('');
   const [weekOffset, setWeekOffset] = useState(0); // Keeps track of how many weeks we've scrolled
 
   const changeDayTasks = (dayIndex) => {
@@ -71,10 +71,11 @@ const PlanStoreScreen = ({ route }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      setPlanTitle(response.data.title);
+
       setTasks(response.data.tasks);
       setCurrentDayTasks(response.data.tasks.filter((task) => task.dayNumber === currentDay + 1))
     } catch (err) {
-      console.log(err)
       if (err.response?.status === 401) {
         setError('Session expired. Please log in again.');
       } else {
@@ -85,6 +86,27 @@ const PlanStoreScreen = ({ route }) => {
     }
   }, [getBearerToken, planId]);
 
+  const handleStartPlan = async () => {
+    try {
+      setLoading(true);
+      const token = await getBearerToken();
+      await axios.post(`${API_URL}/original/plans/${planId}/start`,   {},
+        {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+    } catch (err) {
+      console.log(err)
+      if (err.response?.status === 401) {
+        setError('Session expired. Please log in again.');
+      } else {
+        setError(err.message || 'Something went wrong');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };  
+
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
@@ -93,7 +115,7 @@ const PlanStoreScreen = ({ route }) => {
     <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Your Schedule</Text>
+          <Text style={styles.title}>{planTitle}</Text>
         </View>
 
         <View style={styles.picker}>
@@ -157,9 +179,7 @@ const PlanStoreScreen = ({ route }) => {
 
         <View style={styles.footer}>
           <TouchableOpacity
-            onPress={() => {
-              // handle onPress
-            }}>
+            onPress={handleStartPlan}>
             <View style={styles.btn}>
               <Text style={styles.btnText}>Start now!</Text>
             </View>
@@ -181,7 +201,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700',
     color: '#1d1d1d',
-    marginBottom: 12,
+    paddingTop: 10,
   },
   picker: {
     flex: 1,

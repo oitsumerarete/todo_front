@@ -6,11 +6,8 @@ const TaskCard = ({ task }) => {
     <View style={styles.card}>
       <Text style={styles.title}>{task.title}</Text>
       <Text style={styles.description}>{task.description}</Text>
-      <Text style={styles.status}>Статус: {task.status}</Text>
-      <Text style={styles.day}>День: {task.dayNumber + 1}</Text>
-      <Text style={styles.duration}>Длительность: {task.durationMinutes} мин.</Text>
+      {task.duration && <Text style={styles.duration}>Длительность: {task.durationMinutes} мин.</Text>}
       {task.isMandatory && <Text style={styles.mandatory}>Mandatory Task</Text>}
-      <Text style={styles.createdAt}>Создано: {new Date(task.createdAt).toLocaleDateString()}</Text>
     </View>
   );
 };
