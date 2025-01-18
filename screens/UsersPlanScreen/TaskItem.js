@@ -54,7 +54,7 @@ const TaskItem = memo(({ item, drag, isActive, isToday, onStatusChange }) => {
             {item.startTime} - {item.endTime}
           </Text>
           {item.isMandatory && (
-            <Text style={styles.mandatory}>Mandatory Task</Text>
+            <Text style={styles.mandatory}>Обязательная задача</Text>
           )}
         </View>
         <View style={styles.radioButtonContainer}>

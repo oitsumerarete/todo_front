@@ -1,62 +1,61 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 
 const TaskCard = ({ task }) => {
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>{task.title}</Text>
-      <Text style={styles.description}>{task.description}</Text>
-      {task.duration && <Text style={styles.duration}>Длительность: {task.durationMinutes} мин.</Text>}
-      {task.isMandatory && <Text style={styles.mandatory}>Mandatory Task</Text>}
+      <View style={styles.textContainer}>
+        <Text style={styles.title}>{task.title}</Text>
+        <Text style={styles.description}>{task.description}</Text>
+        {task.duration && <Text style={styles.duration}>Длительность: {task.durationMinutes} мин.</Text>}
+        {task.isMandatory && <Text style={styles.mandatory}>Обязательная задача</Text>}
+      </View>
+      <Image
+        source={{ uri: task.image }}
+        style={styles.image}
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
+    marginTop: 15,
+    flexDirection: 'row', // Размещаем элементы в строку
+    alignItems: 'center', // Выравниваем элементы по вертикали
+    padding: 10,
     backgroundColor: '#fff',
-    padding: 16,
-    marginVertical: 8,
     borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
+    marginBottom: 10,
+  },
+  textContainer: {
+    flex: 1, // Занимает оставшееся пространство
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 5,
   },
   description: {
     fontSize: 14,
-    marginBottom: 8,
-  },
-  status: {
-    fontSize: 12,
-    color: 'gray',
-    marginBottom: 4,
-  },
-  day: {
-    fontSize: 12,
-    color: 'gray',
-    marginBottom: 4,
+    marginBottom: 5,
+    color: '#666',
   },
   duration: {
     fontSize: 12,
-    color: 'gray',
-    marginBottom: 4,
+    color: '#888',
   },
   mandatory: {
     fontSize: 12,
     color: 'red',
-    marginBottom: 4,
+    marginTop: 5,
   },
-  createdAt: {
-    fontSize: 10,
-    color: 'gray',
-    marginTop: 8,
+  image: {
+    width: 70,
+    height: 70,
+    borderRadius: 8,
+    marginLeft: 10, // Отступ между текстом и изображением
   },
 });
 

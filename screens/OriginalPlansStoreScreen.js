@@ -10,7 +10,7 @@ const AllPlansStoreScreen = ({ navigation }) => {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredPlans, setFilteredPlans] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(''); // For filtering by category
+  const [selectedCategories, setSelectedCategories] = useState([]); // For filtering by category
   const [planCategories, setPlanCategories] = useState([]);
 
   // Function to get the bearer token
@@ -30,7 +30,7 @@ const AllPlansStoreScreen = ({ navigation }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setFilteredPlans(response.data);
-      setPlanCategories(["Все", ...new Set(response.data.map((plan) => plan.category))]);
+      setPlanCategories(['Все', 'Туризм', 'Фитнес', 'Образование', 'Здоровье', 'Бизнес']);
     } catch (err) {
       if (err.response?.status === 401) {
         setError('Session expired. Please log in again.');
@@ -42,32 +42,42 @@ const AllPlansStoreScreen = ({ navigation }) => {
     }
   }, [getBearerToken]);
 
+  const handleSearchPlans = useCallback(async () => {
+    try {
+      setLoading(true);
+      const token = await getBearerToken();
+      const response = await axios.get(`${API_URL}/original/plans?searchQuery=${searchQuery}&categories=${selectedCategories.join(`,`)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setFilteredPlans(response.data);
+      setPlanCategories(['Все', 'Туризм', 'Фитнес', 'Образование', 'Здоровье', 'Бизнес']);
+    } catch (err) {
+      if (err.response?.status === 401) {
+        setError('Session expired. Please log in again.');
+      } else {
+        setError(err.message || 'Something went wrong');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [getBearerToken, searchQuery, selectedCategories]);
+
   useEffect(() => {
     fetchPlans();
   }, [fetchPlans]);
+
+
+  useEffect(() => {
+    if (selectedCategories.includes('Все') && selectedCategories.length > 1) {
+      setSelectedCategories('Все');
+    }
+  }, [selectedCategories])
 
   // Format date for display
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
   };
-
-  // Filter plans based on search query and category
-  useEffect(() => {
-    let filtered = plans;
-
-    if (selectedCategory && selectedCategory !== 'All') {
-      filtered = filtered.filter((plan) => plan.category === selectedCategory);
-    }
-
-    if (searchQuery) {
-      filtered = filtered.filter((plan) =>
-        plan.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        plan.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    setFilteredPlans(filtered);
-  }, [searchQuery, selectedCategory, plans]);
 
   // Render individual plan item
   const renderPlanItem = ({ item }) => (
@@ -111,28 +121,37 @@ const AllPlansStoreScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       {/* Search Bar */}
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Найди свой план!"
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-      />
+      <View style={styles.searchBarContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Найди свой план!"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        <TouchableOpacity style={styles.searchButton} onPress={handleSearchPlans}>
+          <Text style={styles.searchButtonText}>🔍</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Category Filters */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterContainer}>
         {planCategories.map((category) => (
           <TouchableOpacity
             key={category}
-            onPress={() => setSelectedCategory(category)}
+            onPress={() => setSelectedCategories((prevItems) =>
+              prevItems.includes(category)
+                ? prevItems.filter((item) => item !== category) // Удаляем элемент, если он уже есть
+                : [...prevItems, category] // Добавляем элемент, если его нет
+            )}
             style={[
               styles.filterButton,
-              selectedCategory === category && styles.activeFilterButton,
+              selectedCategories.includes(category) && styles.activeFilterButton,
             ]}
           >
             <Text
               style={[
                 styles.filterButtonText,
-                selectedCategory === category && styles.activeFilterButtonText,
+                selectedCategories.includes(category) && styles.activeFilterButtonText,
               ]}
             >
               {category}
@@ -140,9 +159,10 @@ const AllPlansStoreScreen = ({ navigation }) => {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
       {!loading && filteredPlans.length === 0 && 
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>No plans available at the moment</Text>
+          <Text style={styles.errorText}>Такие планы не найдены</Text>
         </View>
       }
 
@@ -155,6 +175,7 @@ const AllPlansStoreScreen = ({ navigation }) => {
         maxToRenderPerBatch={10}
         windowSize={5}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-start' }}
       />
     </View>
   );
@@ -167,18 +188,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   searchInput: {
+    flex: 1,
     height: 40,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingLeft: 10,
-    marginBottom: 10,
+    paddingHorizontal: 8,
   },
   filterContainer: {
     flexDirection: 'row',
-    marginBottom: 10,
     paddingBottom: 7,
-    marginBottom: 20,
+    maxHeight: 47,
+    marginBottom: 10,
     padding: '10px',
   },
   filterButton: {
@@ -261,6 +279,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  searchButton: {
+    marginLeft: 8,
+    padding: 8,
+    borderRadius: 5,
+  },
+  searchButtonText: {
+    color: '#fff',
+    fontSize: 16,
   },
 });
 

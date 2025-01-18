@@ -30,10 +30,9 @@ const PlanCreationScreen = () => {
   const [currentDayTasks, setCurrentDayTasks] = useState([]);
   const bottomSheetRef = useRef(null);
   const [tasks, setTasks] = useState([]);
-  const [planTitle, setPlanTitle] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
   const [isCreationButtonDisabled, setIsCreationButtonDisabled] = useState(true);
-  const [weekOffset, setWeekOffset] = useState(0); // Keeps track of how many weeks we've scrolled
+  const [weekOffset, setWeekOffset] = useState(0);
   const [days, setDays] = useState([[{"dayIndex": 0, "label": "1"}]]);
   const [allTasksForPlan, setAllTasksForPlan] = useState([]);
   const [showTimeTaskFields, setShowTimeTaskFields] = useState(false);
@@ -148,8 +147,8 @@ const PlanCreationScreen = () => {
         formData.append(`tasks[${index}][title]`, task.title);
         formData.append(`tasks[${index}][description]`, task.description);
         formData.append(`tasks[${index}][dayNumber]`, task.dayNumber);
-        formData.append(`tasks[${index}][startTime]`, task.startTime.toISOString());
-        formData.append(`tasks[${index}][endTime]`, task.endTime.toISOString());
+        formData.append(`tasks[${index}][startTime]`, task.startTime?.toISOString() || null);
+        formData.append(`tasks[${index}][endTime]`, task.endTime?.toISOString() || null);
         formData.append(`tasks[${index}][isMandatory]`, task.isMandatory);
         formData.append(`tasks[${index}][isMeal]`, task.isMeal);
   
@@ -193,7 +192,6 @@ const PlanCreationScreen = () => {
   };
 
   const handlePlanInputChange = (field, value) => {
-    console.log(field, value)
     setNewPlan((prev) => ({ ...prev, [field]: value }));
   }
 
