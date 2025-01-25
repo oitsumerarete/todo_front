@@ -1,39 +1,13 @@
-// TaskItem.js
-
-import React, { useState, memo } from 'react';
+import React, { memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { RadioButton } from 'react-native-paper';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
 
-import API_URL from '../../config';
-
-const TaskItem = memo(({ item, drag, isActive, isToday, onStatusChange }) => {
-  const [isChecked, setIsChecked] = useState(item.status === 'done');
-
-  const handleChangeTaskStatus = async () => {
-    if (!isToday) return;
+const TaskItem = memo(({ item, drag, isActive, isToday, onStatusChange, isChecked, isTodayDayComleted }) => {
+  const handleChangeTaskStatus = () => {
+    if (!isToday || !isTodayDayComleted) return;
 
     const newStatus = isChecked ? 'pending' : 'done';
-    setIsChecked(!isChecked);
-
-    // Notify the parent about the status change
-    onStatusChange(item.taskId, item.isMandatory, newStatus);
-
-    try {
-      const token = await AsyncStorage.getItem('token');
-      if (!token) {
-        console.error('No token found');
-        return;
-      }
-      await axios.put(
-        `${API_URL}/plans/tasks/${item.taskId}`,
-        { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-    } catch (err) {
-      console.error('Error updating task status:', err);
-    }
+    onStatusChange(item.taskId, item.isMandatory, newStatus, item.taskDate);
   };
 
   return (
@@ -41,7 +15,7 @@ const TaskItem = memo(({ item, drag, isActive, isToday, onStatusChange }) => {
       style={[
         styles.taskItem,
         { backgroundColor: isActive ? '#e0e0e0' : '#ffffff' },
-        !isToday && styles.disabledTask,
+        (!isToday || isTodayDayComleted) && styles.disabledTask,
       ]}
       onLongPress={drag}
       delayLongPress={150}
@@ -61,7 +35,8 @@ const TaskItem = memo(({ item, drag, isActive, isToday, onStatusChange }) => {
           <RadioButton
             status={isChecked ? 'checked' : 'unchecked'}
             onPress={handleChangeTaskStatus}
-            disabled={!isToday}
+            disabled={(!isToday || isTodayDayComleted)}
+            color="#76182a"
           />
         </View>
       </View>
@@ -75,7 +50,7 @@ const styles = StyleSheet.create({
   radioButtonContainer: {
     borderWidth: 1,
     borderColor: '#ccc', // Color of the border
-    borderRadius: 12, // Match the border radius of the radio button
+    borderRadius: 30, // Match the border radius of the radio button
     justifyContent: 'center',
     alignItems: 'center',
   },

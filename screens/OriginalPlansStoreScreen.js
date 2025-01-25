@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, ScrollView, Image } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_URL from '../config';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { Avatar } from 'react-native-paper';
 
 const AllPlansStoreScreen = ({ navigation }) => {
   const [plans, setPlans] = useState([]);
@@ -10,6 +12,7 @@ const AllPlansStoreScreen = ({ navigation }) => {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredPlans, setFilteredPlans] = useState([]);
+
   const [selectedCategories, setSelectedCategories] = useState([]); // For filtering by category
   const [planCategories, setPlanCategories] = useState([]);
 
@@ -30,7 +33,7 @@ const AllPlansStoreScreen = ({ navigation }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setFilteredPlans(response.data);
-      setPlanCategories(['Все', 'Туризм', 'Фитнес', 'Образование', 'Здоровье', 'Бизнес']);
+      setPlanCategories(['Туризм', 'Фитнес', 'Образование', 'Здоровье', 'Бизнес']);
     } catch (err) {
       if (err.response?.status === 401) {
         setError('Session expired. Please log in again.');
@@ -46,12 +49,25 @@ const AllPlansStoreScreen = ({ navigation }) => {
     try {
       setLoading(true);
       const token = await getBearerToken();
-      const response = await axios.get(`${API_URL}/original/plans?searchQuery=${searchQuery}&categories=${selectedCategories.join(`,`)}`, {
+
+      const params = new URLSearchParams();
+
+      if (searchQuery) {
+        params.append("searchQuery", searchQuery);
+      }
+      
+      if (selectedCategories && selectedCategories.length) {
+        params.append("categories", selectedCategories.join(","));
+      }
+
+      const requestPath = `${API_URL}/original/plans?${params.toString()}`;
+
+      const response = await axios.get(requestPath, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       setFilteredPlans(response.data);
-      setPlanCategories(['Все', 'Туризм', 'Фитнес', 'Образование', 'Здоровье', 'Бизнес']);
+      setPlanCategories(['Туризм', 'Фитнес', 'Образование', 'Здоровье', 'Бизнес']);
     } catch (err) {
       if (err.response?.status === 401) {
         setError('Session expired. Please log in again.');
@@ -67,13 +83,6 @@ const AllPlansStoreScreen = ({ navigation }) => {
     fetchPlans();
   }, [fetchPlans]);
 
-
-  useEffect(() => {
-    if (selectedCategories.includes('Все') && selectedCategories.length > 1) {
-      setSelectedCategories('Все');
-    }
-  }, [selectedCategories])
-
   // Format date for display
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
@@ -82,16 +91,38 @@ const AllPlansStoreScreen = ({ navigation }) => {
   // Render individual plan item
   const renderPlanItem = ({ item }) => (
     <TouchableOpacity
-      onPress={() => navigation.navigate('PlanStoreScreen', { planId: item.planId })}
+      onPress={() =>
+        navigation.navigate('PlanStoreScreen', { planId: item.planId })
+      }
       activeOpacity={0.7}
     >
       <View style={styles.planContainer}>
-        <Text style={styles.title}>{item.title}</Text>
+        {/* Header with Image and Title */}
+        <View style={styles.header}>
+          <Avatar.Image
+            size={60}
+            source={{ uri: 'https://www.1zoom.me/big2/62/199578-yana.jpg' }}
+            style={styles.avatar}
+          />
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>{item.title}</Text>
+            <Text style={styles.author}>Автор: {item.username}</Text>
+          </View>
+        </View>
+
+        {/* Description */}
         <Text style={styles.description}>{item.description}</Text>
-        <Text style={styles.details}>{item.details}</Text>
-        <Text style={styles.category}>Category: {item.category}</Text>
-        <Text style={styles.likes}>Likes: {item.likesCount}</Text>
-        <Text style={styles.date}>Created At: {formatDate(item.createdAt)}</Text>
+
+        {/* Footer with details */}
+        <View style={styles.footer}>
+          <Text style={styles.durationContainer}>
+            Длительность: <Text style={styles.duration}>10 дней</Text>
+          </Text>
+          <View style={styles.likesContainer}>
+            <Icon name="heart" size={25} color="#76182a" />
+            <Text style={styles.likesText}>{item.likesCount}</Text>
+          </View>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -100,12 +131,11 @@ const AllPlansStoreScreen = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" color="#76182a" />
       </View>
     );
   }
 
-  // Error handling with retry button
   if (error) {
     return (
       <View style={styles.errorContainer}>
@@ -182,6 +212,20 @@ const AllPlansStoreScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  header: {
+    flexDirection: 'row', // Расположить элементы в строку
+    alignItems: 'center', // Выравнивание по вертикали
+    marginBottom: 10,
+  },
+  avatar: {
+    marginRight: 15, // Отступ между изображением и текстом
+  },
   container: {
     flex: 1,
     padding: 20,
@@ -191,6 +235,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
     paddingHorizontal: 8,
+    color: '#76182a',
   },
   filterContainer: {
     flexDirection: 'row',
@@ -199,32 +244,46 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     padding: '10px',
   },
+  likesContainer: {
+    marginTop: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   filterButton: {
     paddingHorizontal: 15,
     paddingVertical: 10,
     height: 40,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#007BFF',
+    borderColor: '#7f6059',
     marginRight: 10,
   },
   activeFilterButton: {
-    backgroundColor: '#007BFF',
+    backgroundColor: '#76182a',
+  },
+  duration: {
+    fontSize: 14,
+    color: '#76182a',
   },
   filterButtonText: {
     fontSize: 14,
-    color: '#007BFF',
+    color: '#76182a',
   },
   activeFilterButtonText: {
     color: '#fff',
   },
+  likesText: {
+    fontSize: 16,
+    color: '#76182a',
+    marginLeft: 3,
+  },
   planContainer: {
     marginBottom: 20,
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#ccc',
-    backgroundColor: '#f9f9f9',
+    borderColor: '#76182a',
+    backgroundColor: '#f3f0f0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -249,7 +308,7 @@ const styles = StyleSheet.create({
   },
   likes: {
     fontSize: 14,
-    color: '#007BFF',
+    color: '#76182a',
   },
   date: {
     fontSize: 12,
@@ -269,6 +328,9 @@ const styles = StyleSheet.create({
     color: 'red',
     fontSize: 16,
   },
+  titleContainer: {
+    flex: 1,
+  },
   retryButton: {
     marginTop: 20,
     padding: 10,
@@ -281,10 +343,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   searchBarContainer: {
+    borderColor: '#ba364e',
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ccc',
     borderRadius: 8,
     paddingHorizontal: 10,
     marginBottom: 10,

@@ -10,6 +10,7 @@ import {
   TextInput,
   Button,
   Switch,
+  Modal,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import DraggableFlatList from 'react-native-draggable-flatlist';
@@ -19,6 +20,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import TaskItem from './TaskItem';
 import API_URL from '../../config';
@@ -31,6 +33,7 @@ const PlanScreen = () => {
   const [showPicker, setShowPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState('date');
   const [pickerField, setPickerField] = useState(null);
+  const [isModalVisible, setModalVisible] = useState(false);
 
   // Function to get date in 'YYYY-MM-DD' format
   const getFormattedDate = (date) => {
@@ -55,6 +58,9 @@ const PlanScreen = () => {
   const bottomSheetRef = useRef(null);
   const [today, setToday] = useState(todayDate);
   const [isMealToday, setIsMealToday] = useState(false);
+  const [pendingTask, setPendingTask] = useState(null);
+  const [isTodayDayComleted, setIsTodayDayCompleted] = useState(false);
+  const [originalPlanId, setOriginalPlanId] = useState();
   const [mealsStat, setMealsStat] = useState([
     { label: "ккал", value: 0, color: "#3b6b3b" },
     { label: "белки", value: 0, color: "#263d26" },
@@ -154,7 +160,7 @@ const PlanScreen = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      const { planId, title, description } = response.data;
+      const { planId, title, description, originalPlanId, isDayCompleted } = response.data;
       const tasks = response.data?.tasks || [];
 
       const tasksByDateTemp = {};
@@ -184,6 +190,8 @@ const PlanScreen = () => {
       });
 
       setPlan({ planId, title, description });
+      setOriginalPlanId(originalPlanId);
+      setIsTodayDayCompleted(isDayCompleted);
       setTasksByDate(tasksByDateTemp);
       setMarkedDates(markedDatesTemp);
       setTaskSummaryByDate(taskSummaryByDateTemp);
@@ -235,15 +243,29 @@ const PlanScreen = () => {
     return dateString1 === dateString2;
   };
 
-  const onStatusChange = (taskId, isMandatory, newStatus, taskDate) => {
+  const onStatusChange = async (taskId, isMandatory, newStatus, taskDate) => {
+    const date = taskDate;
+  
+    let flag = false;
+    // Обновляем taskSummaryByDate
     setTaskSummaryByDate((prevSummary) => {
-      const date = taskDate;
       const updatedSummary = { ...prevSummary };
+  
+      if (!updatedSummary[date]) {
+        updatedSummary[date] = { mandatoryNotDone: 0, totalTasks: 0 }; // Инициализация объекта, если его нет
+      }
 
       if (isMandatory) {
         if (newStatus === 'done') {
+          if ((updatedSummary[date].mandatoryNotDone - 1) === 0) {
+            setModalVisible(true);
+            setPendingTask({ taskId, date, newStatus, isLastTaskForDayToDoGoingToBeDone: true });
+            flag = true;
+            return prevSummary;
+          }
+
           updatedSummary[date].mandatoryNotDone -= 1;
-        } else if (newStatus !== 'done') {
+        } else {
           updatedSummary[date].mandatoryNotDone += 1;
         }
       }
@@ -251,8 +273,29 @@ const PlanScreen = () => {
       return updatedSummary;
     });
 
+    if (flag === true) {
+      return;
+    }
+
+    // Выполняем асинхронные действия перед обновлением состояния
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        console.error('No token found');
+        return;
+      }
+  
+      await axios.put(
+        `${API_URL}/plans/tasks/${taskId}`,
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (err) {
+      console.error('Error updating task status:', err);
+    }
+  
+    // Обновляем tasksByDate
     setTasksByDate((prevTasks) => {
-      const date = taskDate;
       const updatedTasks = {
         ...prevTasks,
         [date]: prevTasks[date].map((task) =>
@@ -263,6 +306,67 @@ const PlanScreen = () => {
     });
   };
 
+  const confirmDayCompletion = async () => {
+    if (!pendingTask) return; // Проверяем, есть ли задача для подтверждения
+  
+    const { taskId, date, newStatus, isLastTaskForDayToDoGoingToBeDone } = pendingTask;
+  
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        console.error('No token found');
+        return;
+      }
+  
+      await axios.put(
+        `${API_URL}/plans/tasks/${taskId}`,
+        { status: newStatus, lastTaskGoingToBeDone: isLastTaskForDayToDoGoingToBeDone, originalPlanId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setTasksByDate((prevTasks) => {
+        const updatedTasks = {
+          ...prevTasks,
+          [date]: prevTasks[date].map((task) =>
+            task.taskId === taskId ? { ...task, status: newStatus } : task
+          ),
+        };
+        return updatedTasks;
+      });
+
+      setTaskSummaryByDate((prevSummary) => {
+        const updatedSummary = { ...prevSummary };
+    
+        if (!updatedSummary[date]) {
+          updatedSummary[date] = { mandatoryNotDone: 0, totalTasks: 0 }; // Инициализация объекта, если его нет
+        }
+  
+        if (newStatus === 'done') {
+          updatedSummary[date].mandatoryNotDone -= 1;
+        }
+  
+        return updatedSummary;
+      });
+
+      setIsTodayDayCompleted(true);
+    } catch (err) {
+      console.error('Error updating task status:', err);
+    }
+  
+    // Скрываем модалку и очищаем состояние
+    setModalVisible(false);
+    setPendingTask(null);
+  };
+
+  const cancelDayCompletion = () => {
+    // Если пользователь отменяет завершение дня
+    setModalVisible(false);
+    setPendingTask(null);
+  };
+
+  console.log(isTodayDayComleted)
+  
+
   const renderItem = ({ item, index, drag, isActive }) => {
     const itemDateLocal = new Date(item.date).toLocaleDateString('en-CA');
   
@@ -271,7 +375,9 @@ const PlanScreen = () => {
         item={item}
         drag={drag}
         isActive={isActive}
+        isTodayDayComleted={isTodayDayComleted}
         isToday={isSameDay(itemDateLocal, todayDate)}
+        isChecked={item.status === 'done'}
         onStatusChange={(taskId, isMandatory, newStatus) =>
           onStatusChange(taskId, isMandatory, newStatus, new Date(item.date).toLocaleDateString('en-CA'))
         }
@@ -320,7 +426,7 @@ const PlanScreen = () => {
   Object.entries(taskSummaryByDate).forEach(([date, summary]) => {
     mergedMarkedDates[date] = {
       ...mergedMarkedDates[date],
-      dotColor: summary.mandatoryNotDone > 0 ? 'red' : 'green',
+      dotColor: summary.mandatoryNotDone > 0 ? 'gray' : 'gray',
     };
   });
 
@@ -328,16 +434,21 @@ const PlanScreen = () => {
     mergedMarkedDates[selectedDate] = {
       ...(mergedMarkedDates[selectedDate] || {}),
       selected: true,
-      selectedColor: '#00adf5',
+      selectedColor: '#76182a',
     };
   }
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Plan Description */}
-      <View style={styles.planDescription}>
-        <Text style={styles.planTitle}>{plan.title}</Text>
-        <Text style={styles.planDetails}>{plan.description}</Text>
+      <View style={styles.planDescriptionContainer}>
+        <View style={styles.planDescription}>
+          <Text style={styles.planTitle}>{plan.title}</Text>
+          <Text style={styles.planDetails}>{plan.description}</Text>
+        </View>
+        <View style={styles.circle}>
+          <Text style={styles.circleText}>{taskSummaryByDate[selectedDate]?.mandatoryNotDone || 0}</Text>
+        </View>
       </View>
 
       {/* Calendar */}
@@ -346,7 +457,7 @@ const PlanScreen = () => {
         onDayPress={handleDayPress}
         markedDates={mergedMarkedDates}
         theme={{
-          selectedDayBackgroundColor: '#00adf5',
+          selectedDayBackgroundColor: '#76182a',
           todayTextColor: '#00adf5',
           arrowColor: '#00adf5',
         }}
@@ -355,19 +466,13 @@ const PlanScreen = () => {
       {/* Tasks for the Selected Day */}
       {selectedDate && 
         <View style={styles.taskListContainer}>
-          <Text style={styles.tasksHeader}>
-            Задачи на {format(selectedDate, 'dd.MM')}
-            (
-            {taskSummaryByDate[selectedDate]?.mandatoryNotDone || 0} обязательных осталось)
-          </Text>
-
           {isMealToday && 
             <View style={styles.containerPCF}>
               {mealsStat.map((stat, index) => (
                 <View key={index} style={styles.statBox}>
                   <View style={[styles.bar, { backgroundColor: stat.color }]} />
-                  <Text style={styles.value}>{stat.value}</Text>
-                  <Text style={styles.label}>{stat.label}</Text>
+                  <Text style={styles.value}>{stat.value || 0}</Text>
+                  <Text style={styles.label}>{stat.label || 0}</Text>
                 </View>
               ))}
             </View>
@@ -384,8 +489,7 @@ const PlanScreen = () => {
 
       <FAB
         style={styles.fab}
-        small
-        icon="plus"
+        icon={() => <Icon name="plus" size={24} color="white" />}
         onPress={handleOpenBottomSheet}
       />
 
@@ -471,6 +575,25 @@ const PlanScreen = () => {
         </View>
       </BottomSheet>
 
+      <Modal
+        visible={isModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalText}>
+              Завершение этой задачи приведет к завершению дня. Вы уверены, что хотите завершить день?
+            </Text>
+            <View style={styles.buttonContainer}>
+              <Button title="Да, завершить день" onPress={confirmDayCompletion} />
+              <Button title="Нет, отменить" onPress={cancelDayCompletion} color="red" />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* DateTimePicker */}
       {showPicker && (
         <DateTimePicker
@@ -507,6 +630,29 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: '80%',
+    padding: 20,
+    backgroundColor: 'white',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalText: {
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
   statBox: {
     alignItems: "center",
     width: "22%", // Adjust width for spacing
@@ -528,16 +674,46 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   container: { flex: 1 },
-  planDescription: { padding: 16, backgroundColor: '#f7f7f7' },
-  planTitle: { fontSize: 24, fontWeight: 'bold' },
-  planDetails: { fontSize: 16, marginTop: 8 },
+  planDescriptionContainer: {
+    flexDirection: 'row', // Размещаем элементы в ряд
+    alignItems: 'center', // Выравниваем по вертикали
+    justifyContent: 'space-between', // Распределяем пространство
+    padding: 10,
+  },
+  planDescription: {
+    flex: 1, // Занимает оставшееся пространство
+  },
+  planTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  planDetails: {
+    fontSize: 16,
+    color: 'gray',
+  },
+  circle: {
+    width: 40, // Размер круга
+    height: 40, // Размер круга
+    borderRadius: 30, // Радиус для создания круга
+    backgroundColor: 'white', // Белый фон внутри
+    borderWidth: 2, // Толщина обводки
+    borderColor: '#CD5C5C', // Красная обводка
+    alignItems: 'center', // Центрируем текст по горизонтали
+    justifyContent: 'center', // Центрируем текст по вертикали
+  },
+  circleText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#76182a'
+  },
   taskListContainer: { flex: 1, padding: 16 },
   tasksHeader: { fontSize: 18, marginBottom: 8, fontWeight: 'bold' },
   fab: {
     position: 'absolute',
     left: 16,
     bottom: 16,
-    backgroundColor: '#00adf5',
+    color: '#fff',
+    backgroundColor: '#76182a',
   },
   contentContainer: {
     padding: 16,

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   Dimensions,
@@ -27,32 +27,38 @@ const PlanStoreScreen = ({ route }) => {
   const [tasks, setTasks] = useState([]);
   const [planTitle, setPlanTitle] = useState('');
   const [weekOffset, setWeekOffset] = useState(0); // Keeps track of how many weeks we've scrolled
+  const [numberOfDaysForPlan, setNumberOfDaysForPlan] = useState(0);
 
   const changeDayTasks = (dayIndex) => {
     setCurrentDay(dayIndex);
     setCurrentDayTasks(tasks.filter((task) => task.dayNumber === dayIndex + 1))
   }
-  // Helper function to convert a number to an ordinal (1st, 2nd, 3rd, etc.)
-  const ordinal = (n) => {
-    const s = ["th", "st", "nd", "rd"],
-      v = n % 100;
-    return n + (s[(v - 20) % 10] || s[v] || s[0]);
-  };
+
 
   const renderTaskItem = ({ item }) => <OriginalTaskCard task={item} />;
 
   // Calculate the days to display (7 days per swipe) based on weekOffset
-  const days = React.useMemo(() => {
+  const days = useMemo(() => {
+    let totalDaysCount = 0;
+
     return [-1, 0, 1].map(adj => {
-      return Array.from({ length: 7 }).map((_, index) => {
-        const dayIndex = (weekOffset + adj) * 7 + index;
-        return {
-          label: `${ordinal(dayIndex + 1)} day`, // Convert dayIndex to "First day", "Second day", etc.
-          dayIndex,
-        };
-      });
-    });
-  }, [weekOffset]);
+      return Array.from({ length: 7 })
+        .map((_, index) => {
+          const dayIndex = (weekOffset + adj) * 7 + index;
+          if (dayIndex < 0 || totalDaysCount >= numberOfDaysForPlan) return null; // Пропускаем отрицательные дни
+
+          totalDaysCount += 1;
+          return {
+            label: `${dayIndex + 1} день`, // Преобразуем dayIndex в "1 день", "2 день" и т.д.
+            dayIndex,
+          };
+        })
+        .filter(day => day !== null); // Убираем null значения
+    }).filter((weeks) => weeks.length);
+  }, [weekOffset, numberOfDaysForPlan]);
+
+  console.log(days)
+  console.log(numberOfDaysForPlan)
 
   const getBearerToken = useCallback(async () => {
     const token = await AsyncStorage.getItem('token');
@@ -74,7 +80,9 @@ const PlanStoreScreen = ({ route }) => {
       setPlanTitle(response.data.title);
 
       setTasks(response.data.tasks);
-      setCurrentDayTasks(response.data.tasks.filter((task) => task.dayNumber === currentDay + 1))
+      setCurrentDayTasks(response.data.tasks.filter((task) => task.dayNumber === currentDay + 1));
+      const maxNumber = Math.max(...response.data.tasks.map(item => item.dayNumber));
+      setNumberOfDaysForPlan(maxNumber);
     } catch (err) {
       if (err.response?.status === 401) {
         setError('Session expired. Please log in again.');
@@ -167,7 +175,7 @@ const PlanStoreScreen = ({ route }) => {
         </View>
 
         <View style={{ flex: 1, paddingHorizontal: 16, paddingVertical: 10 }}>
-          <Text style={styles.subtitle}>{ordinal(currentDay + 1)} day</Text>
+          <Text style={styles.subtitle}>{currentDay + 1} день</Text>
           <View style={styles.container}>
               <FlatList
                 data={currentDayTasks}
@@ -181,7 +189,7 @@ const PlanStoreScreen = ({ route }) => {
           <TouchableOpacity
             onPress={handleStartPlan}>
             <View style={styles.btn}>
-              <Text style={styles.btnText}>Start now!</Text>
+              <Text style={styles.btnText}>Начать сейчас!</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -274,8 +282,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderWidth: 1,
-    backgroundColor: '#007aff',
-    borderColor: '#007aff',
+    backgroundColor: '#76182a',
+    borderColor: '#76182a',
   },
   btnText: {
     fontSize: 18,

@@ -1,30 +1,18 @@
 import React from "react";
-import { FlatList, Text, View, StyleSheet, TouchableOpacity } from "react-native";
+import { FlatList, Text, View, Image, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-const tasks = [
-  {
-    taskId: 270,
-    title: "Introduction to Photography",
-    description: "Basics of camera handling",
-    status: "pending",
-  },
-  {
-    taskId: 262,
-    title: "Composition Techniques",
-    description: "Learn different composition methods",
-    status: "completed",
-  },
-  // Добавьте другие задачи из вашего массива
-];
-
-const TodayTasks = () => {
+const TodayTasks = ({data}) => {
   const renderItem = ({ item }) => {
-    const isCompleted = item.status === "completed";
+    const isCompleted = item.status === "done";
 
     return (
       <View style={styles.taskContainer}>
         <View style={styles.taskInfo}>
+        <Image
+          source={{ uri: item.image }}
+          resizeMode="cover" // или "contain", если нужно вписать изображение
+        />
           <Text style={styles.title}>{item.title}</Text>
           <Text style={styles.description}>{item.description}</Text>
         </View>
@@ -41,7 +29,7 @@ const TodayTasks = () => {
 
   return (
     <FlatList
-      data={tasks}
+      data={data}
       keyExtractor={(item) => item.taskId.toString()}
       renderItem={renderItem}
     />

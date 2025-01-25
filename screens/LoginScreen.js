@@ -39,7 +39,6 @@ const LoginScreen = ({ navigation }) => {
 
       const { token } = response.data;
       await AsyncStorage.setItem('token', token);
-      alert('Login successful!');
 
       navigation.replace('Main');
     } catch (error) {
@@ -50,29 +49,23 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
+      <Text style={styles.title}>Вход</Text>
       <TextInput
         style={styles.input}
-        placeholder="email"
+        placeholder="Почта"
         autoCapitalize="none"
         value={email}
         onChangeText={setEmail}
       />
       <TextInput
         style={styles.input}
-        placeholder="password"
+        placeholder="Пароль"
         autoCapitalize="none"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
-      <Button title="Login" onPress={login} />
-      <Text
-        style={styles.link}
-        onPress={() => navigation.navigate('Register')}
-      >
-        Don't have an account? Register here
-      </Text>
+      <Button title="Войти" onPress={login} />
     </View>
   );
 };

@@ -24,7 +24,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 const { width } = Dimensions.get('window');
 
-const PlanCreationScreen = () => {
+const PlanCreationScreen = ({navigation}) => {
   const swiper = useRef();
   const [currentDay, setCurrentDay] = useState(0);
   const [currentDayTasks, setCurrentDayTasks] = useState([]);
@@ -174,8 +174,14 @@ const PlanCreationScreen = () => {
           Authorization: `Bearer ${token}`
         },
       });
-  
-      const data = await response.json();
+      console.log('response123',response.data)
+      
+      if (response.data) {
+        navigation.navigate('PlanStoreScreen', { planId: response.data })
+      } else {
+        navigation.navigate('HomeScreen')
+      }
+
     } catch (error) {
       console.error('Error saving plan:', error);
     }
@@ -249,6 +255,7 @@ const PlanCreationScreen = () => {
             <TextInput
               style={styles.input}
               placeholder="Введите название плана"
+              maxLength={30}
               value={newPlan.title}
               onChangeText={(text) => {
                 handlePlanInputChange('title', text);
@@ -260,8 +267,11 @@ const PlanCreationScreen = () => {
             <Text style={styles.label}>Описание плана</Text>
             <TextInput
               style={styles.input}
+              multiline={true} // Включает ввод в несколько строк
+              numberOfLines={4}
               placeholder="Введите описание плана"
               value={newPlan.description}
+              maxLength={250}
               onChangeText={(description) => {
                 handlePlanInputChange('description', description);
               }}
@@ -297,8 +307,8 @@ const PlanCreationScreen = () => {
                         style={[
                           styles.item,
                           isActive && {
-                            backgroundColor: '#111',
-                            borderColor: '#111',
+                            backgroundColor: '#76182a',
+                            borderColor: '#76182a',
                           },
                         ]}>
                         <Text
@@ -318,16 +328,16 @@ const PlanCreationScreen = () => {
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Button style={{ marginLeft: 16, borderColor: 'blue', borderWidth: 0.5}} onPress={() => addDay()}>Добавить день</Button>
+          <Button style={{ marginLeft: 16, borderColor: 'blue', borderWidth: 0.5, borderColor: 'grey' }} labelStyle={{ color: '#000' }} onPress={() => addDay()}>Добавить день</Button>
           {days[0].length > 1 && (
-            <Button style={{ marginLeft: 5, borderColor: 'blue', borderWidth: 0.5}} onPress={() => removeLastDay()}>Удалить день</Button>
+            <Button style={{ marginLeft: 5, borderColor: 'blue', borderWidth: 0.5, borderColor: '#76182a' }} labelStyle={{color: '#000'}} onPress={() => removeLastDay()}>Удалить день</Button>
           )}
         </View>
 
         <View style={{ flex: 1, paddingHorizontal: 16, paddingVertical: 10 }}>
           <Text style={styles.subtitle}>Задачи для дня {currentDay + 1}</Text>
           <View style={styles.container}>
-            <Button style={{ marginLeft: 5, borderColor: 'blue', borderWidth: 0.5}} onPress={() => handleOpenBottomSheet()}>Добавить задачу</Button>
+            <Button style={{ marginLeft: 5, borderColor: 'blue', borderWidth: 0.5, borderColor: '#76182a'}} labelStyle={{color: '#000'}} onPress={() => handleOpenBottomSheet()}>Добавить задачу</Button>
             <FlatList
               data={allTasksForPlan.filter((task) => task.dayNumber === currentDay)}
               renderItem={renderTaskItem}
@@ -375,8 +385,8 @@ const PlanCreationScreen = () => {
           <View style={styles.toggleContainer}>
             <Text>Указать время:</Text>
             <Switch
-              thumbColor={showTimeTaskFields ? 'blue' : 'gray'}
-              trackColor={{ false: 'lightgray', true: 'lightblue' }}
+              thumbColor={showTimeTaskFields ? 'white' : 'gray'}
+              trackColor={{ false: '#76182a', true: '#76182a' }}
               style={{ transform: [{ scaleX: 0.6 }, { scaleY: 0.6 }] }}
               value={showTimeTaskFields}
               onValueChange={setShowTimeTaskFields}
@@ -565,8 +575,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderWidth: 1,
-    backgroundColor: '#007aff',
-    borderColor: '#007aff',
+    backgroundColor: '#76182a',
+    borderColor: '#76182a',
   },
   input: {
     borderWidth: 1,
@@ -616,7 +626,7 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 16,
-    color: '#007bff',
+    color: '#76182a',
     paddingVertical: 8,
   },
 });
