@@ -1,10 +1,11 @@
 import React, { memo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { RadioButton } from 'react-native-paper';
+import { MaterialIcons } from '@expo/vector-icons'; // Используем библиотеку иконок
 
 const TaskItem = memo(({ item, drag, isActive, isToday, onStatusChange, isChecked, isTodayDayComleted }) => {
   const handleChangeTaskStatus = () => {
-    if (!isToday || !isTodayDayComleted) return;
+    if (!isToday || isTodayDayComleted) return;
 
     const newStatus = isChecked ? 'pending' : 'done';
     onStatusChange(item.taskId, item.isMandatory, newStatus, item.taskDate);
@@ -21,21 +22,32 @@ const TaskItem = memo(({ item, drag, isActive, isToday, onStatusChange, isChecke
       delayLongPress={150}
     >
       <View style={styles.taskContent}>
+        <Image
+          style={styles.taskImage}
+          source={{ uri: item.mainImageLink }}
+        />
         <View style={styles.textContainer}>
-          <Text style={styles.taskTitle}>{item.title}</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.taskTitle}>{item.title}</Text>
+            {item.isMandatory && (
+              <MaterialIcons
+                name="error" // Иконка для обязательной задачи
+                size={17}
+                color="#76182a"
+                style={styles.mandatoryIcon}
+              />
+            )}
+          </View>
           <Text style={styles.taskDescription}>{item.description}</Text>
           <Text style={styles.taskTime}>
             {item.startTime} - {item.endTime}
           </Text>
-          {item.isMandatory && (
-            <Text style={styles.mandatory}>Обязательная задача</Text>
-          )}
         </View>
         <View style={styles.radioButtonContainer}>
           <RadioButton
             status={isChecked ? 'checked' : 'unchecked'}
             onPress={handleChangeTaskStatus}
-            disabled={(!isToday || isTodayDayComleted)}
+            disabled={!isToday || isTodayDayComleted}
             color="#76182a"
           />
         </View>
@@ -49,8 +61,8 @@ export default TaskItem;
 const styles = StyleSheet.create({
   radioButtonContainer: {
     borderWidth: 1,
-    borderColor: '#ccc', // Color of the border
-    borderRadius: 30, // Match the border radius of the radio button
+    borderColor: '#ccc',
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -69,12 +81,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   textContainer: {
+    paddingLeft: 15,
     flex: 1,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   taskTitle: {
     fontSize: 16,
     color: '#000',
     fontWeight: '500',
+  },
+  mandatoryIcon: {
+    marginLeft: 5,
   },
   taskDescription: {
     fontSize: 14,
@@ -86,9 +106,10 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 4,
   },
-  mandatory: {
-    fontSize: 12,
-    color: 'red',
-    marginBottom: 4,
+  taskImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginLeft: 5,
   },
 });

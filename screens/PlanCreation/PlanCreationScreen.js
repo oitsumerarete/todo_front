@@ -24,29 +24,35 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 const { width } = Dimensions.get('window');
 
+const availableTags = [
+  { label: 'Фитнес', color: '#FFE4E6' },
+  { label: 'Питание', color: '#FFF5E6' },
+  { label: 'Работа', color: '#FFFFE6' },
+  { label: 'Отдых', color: '#E6FFEB' },
+  { label: 'Путешествия', color: '#E6F7FF' },
+  { label: 'Саморазвитие', color: '#F3E6FF' },
+  { label: 'Семья', color: '#FFEDED' },
+  { label: 'Быт', color: '#E8FFE8' },
+  { label: 'Здоровье', color: '#E8F3FF' },
+  { label: 'Социальная активность', color: '#FBE8FF' },
+];
+
 const PlanCreationScreen = ({navigation}) => {
   const swiper = useRef();
+  const bottomSheetRef = useRef(null);
+  const [isPlanCreationButtonDisabled, setIsPlanCreationButtonDisabled] = useState(false);
   const [currentDay, setCurrentDay] = useState(0);
   const [currentDayTasks, setCurrentDayTasks] = useState([]);
-  const bottomSheetRef = useRef(null);
   const [tasks, setTasks] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const [isCreationButtonDisabled, setIsCreationButtonDisabled] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
   const [days, setDays] = useState([[{"dayIndex": 0, "label": "1"}]]);
-  const [allTasksForPlan, setAllTasksForPlan] = useState([]);
+  const [allTasksForPlan, setAllTasksForPlan] = useState([]); // Все задачи плана
   const [showTimeTaskFields, setShowTimeTaskFields] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState('date');
   const [pickerField, setPickerField] = useState(null);
-
-  const getBearerToken = useCallback(async () => {
-    const token = await AsyncStorage.getItem('token');
-    if (!token) {
-      throw new Error('No token found');
-    }
-    return token;
-  }, []);
 
   const [newPlan, setNewPlan] = useState({
     title: '',
@@ -64,14 +70,44 @@ const PlanCreationScreen = ({navigation}) => {
     isMandatory: false,
     isMeal: false,
     image: null,
+    tag: ''
   });
+
+  const getBearerToken = useCallback(async () => {
+    const token = await AsyncStorage.getItem('token');
+    if (!token) {
+      throw new Error('No token found');
+    }
+    return token;
+  }, []);
 
   const changeDayTasks = (dayIndex) => {
     setCurrentDay(dayIndex);
-    setCurrentDayTasks(tasks.filter((task) => task.dayNumber === dayIndex + 1))
-  }
+    setCurrentDayTasks(tasks.filter((task) => task.dayNumber === dayIndex + 1));
+  };
 
-  const renderTaskItem = ({ item }) => <OriginalTaskCard task={item} />;
+  // <<<<< ФУНКЦИЯ УДАЛЕНИЯ ЗАДАЧИ
+  const handleDeleteTask = (taskToDelete) => {
+    setAllTasksForPlan((prevTasks) =>
+      prevTasks.filter((task) => task !== taskToDelete)
+    );
+  };
+  // <<<<<
+
+  // Изменим renderTaskItem, чтобы добавить кнопку удаления
+  const renderTaskItem = ({ item }) => {
+    return (
+      <View style={styles.taskItemContainer}>
+        <OriginalTaskCard task={item} />
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => handleDeleteTask(item)} // <<<<<
+        >
+          <Text style={styles.deleteButtonText}>X</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   const handleCloseBottomSheet = () => {
     bottomSheetRef.current?.close();
@@ -84,30 +120,25 @@ const PlanCreationScreen = ({navigation}) => {
   const addDay = () => {
     const lastWeek = days[days.length - 1];
     const lastDayIndex = lastWeek[lastWeek.length - 1].dayIndex;
-
     if (lastWeek.length < 7) {
-      // Добавляем день в текущую неделю
-      const newDay = { dayIndex: lastDayIndex + 1, label: lastDayIndex + 2};
+      const newDay = { dayIndex: lastDayIndex + 1, label: lastDayIndex + 2 };
       const updatedDays = [...days];
       updatedDays[updatedDays.length - 1] = [...lastWeek, newDay];
       setDays(updatedDays);
     } else {
-      // Создаем новую неделю
-      const newDay = { dayIndex: lastDayIndex + 1, label: lastDayIndex + 2};
+      const newDay = { dayIndex: lastDayIndex + 1, label: lastDayIndex + 2 };
       setDays([...days, [newDay]]);
     }
-  }
+  };
 
   const removeLastDay = () => {
     const lastWeek = days[days.length - 1];
-    if (!lastWeek || (lastWeek.length === 0 && days.length === 1)) return; // Нечего удалять
+    if (!lastWeek || (lastWeek.length === 0 && days.length === 1)) return;
 
     const updatedDays = [...days];
     if (lastWeek.length === 1) {
-      // Если это последний день в неделе, удаляем неделю
       updatedDays.pop();
     } else {
-      // Удаляем последний день из текущей недели
       updatedDays[updatedDays.length - 1] = lastWeek.slice(0, -1);
     }
     setDays(updatedDays);
@@ -115,6 +146,10 @@ const PlanCreationScreen = ({navigation}) => {
 
   const handleCreateTask = async () => {
     try {
+      if (!showTimeTaskFields) {
+        delete newTask.startTime;
+        delete newTask.endTime;
+      }
       setAllTasksForPlan((prevItems) => [...prevItems, newTask]);
       handleCloseBottomSheet();
       setNewTask({
@@ -126,7 +161,8 @@ const PlanCreationScreen = ({navigation}) => {
         isMandatory: false,
         isMeal: false,
         image: null,
-      })
+        tag: ''
+      });
       setSelectedImage(null);
     } catch (error) {
       console.error('Error creating task:', error);
@@ -136,28 +172,24 @@ const PlanCreationScreen = ({navigation}) => {
   const handlePlanToServer = async () => {
     try {
       const formData = new FormData();
-  
-      // Добавляем данные плана
       formData.append('title', newPlan.title);
       formData.append('description', newPlan.description);
-      formData.append('tags', JSON.stringify(newPlan.tags)); // Массивы нужно сериализовать
-  
-      // Добавляем задачи
+      formData.append('tags', JSON.stringify(newPlan.tags));
+
       allTasksForPlan.forEach((task, index) => {
         formData.append(`tasks[${index}][title]`, task.title);
         formData.append(`tasks[${index}][description]`, task.description);
-        formData.append(`tasks[${index}][dayNumber]`, task.dayNumber);
+        formData.append(`tasks[${index}][dayNumber]`, task.dayNumber + 1);
+        formData.append(`tasks[${index}][tag]`, task.tag);
         formData.append(`tasks[${index}][startTime]`, task.startTime?.toISOString() || null);
         formData.append(`tasks[${index}][endTime]`, task.endTime?.toISOString() || null);
         formData.append(`tasks[${index}][isMandatory]`, task.isMandatory);
         formData.append(`tasks[${index}][isMeal]`, task.isMeal);
-  
-        // Добавляем изображение задачи, если оно есть
+
         if (task.image) {
           const filename = task.image.split('/').pop();
           const match = /\.(\w+)$/.exec(filename);
           const fileType = match ? `image/${match[1]}` : 'image';
-  
           formData.append(`tasks[${index}][image]`, {
             uri: task.image,
             name: filename,
@@ -167,21 +199,18 @@ const PlanCreationScreen = ({navigation}) => {
       });
 
       const token = await getBearerToken();
-      // Отправляем данные на сервер
       const response = await axios.post(`${API_URL}/original/plans`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${token}`
         },
       });
-      console.log('response123',response.data)
       
       if (response.data) {
         navigation.navigate('PlanStoreScreen', { planId: response.data })
       } else {
         navigation.navigate('HomeScreen')
       }
-
     } catch (error) {
       console.error('Error saving plan:', error);
     }
@@ -199,17 +228,19 @@ const PlanCreationScreen = ({navigation}) => {
 
   const handlePlanInputChange = (field, value) => {
     setNewPlan((prev) => ({ ...prev, [field]: value }));
-  }
+  };
+
+  useEffect(() => {
+    setIsPlanCreationButtonDisabled(!newPlan.title.trim() || !allTasksForPlan.length);
+  }, [newPlan.title, allTasksForPlan]);
 
   const handleSelectImage = async () => {
-    // Запрашиваем разрешения
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       alert('Необходимо разрешение для доступа к галерее!');
       return;
     }
 
-    // Открываем галерею
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaType,
       allowsEditing: true,
@@ -217,20 +248,15 @@ const PlanCreationScreen = ({navigation}) => {
     });
 
     if (!result.canceled) {
-      setSelectedImage(result.assets[0].uri); // Сохраняем URI выбранного изображения
+      setSelectedImage(result.assets[0].uri);
+      setNewTask((prev) => ({ ...prev, image: result.assets[0].uri }));
     }
-
-    setNewTask((prev) => ({ ...prev, ['image']: result.assets[0].uri }));
   };
 
   const handlePickerChange = (event, selectedValue) => {
     if (event.type === 'set' && selectedValue) {
       if (pickerMode === 'date') {
-        const updatedValue = getFormattedDate(selectedValue);
-        setNewTask((prev) => ({
-          ...prev,
-          [pickerField]: updatedValue,
-        }));
+        // Здесь логика, если хотите дату, а не время
       } else {
         setNewTask((prev) => ({
           ...prev,
@@ -243,12 +269,20 @@ const PlanCreationScreen = ({navigation}) => {
 
   useEffect(() => {
     setIsCreationButtonDisabled(!newTask.title.trim());
-    setNewTask((prev) => ({ ...prev, ['dayNumber']: currentDay }));
-  }, [newTask.title])
+    setNewTask((prev) => ({ ...prev, dayNumber: currentDay }));
+  }, [newTask.title]);
+
+  const handleTagToggle = (tagLabel) => {
+    setNewTask((prevTask) => ({
+      ...prevTask,
+      tag: prevTask.tag === tagLabel ? '' : tagLabel
+    }));
+  };
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
+        {/* Поля ввода Названия и Описания плана */}
         <View style={{ padding: 15, paddingBottom: 0 }}>
           <View style={styles.fieldContainer}>
             <Text style={styles.label}>Название плана</Text>
@@ -257,9 +291,7 @@ const PlanCreationScreen = ({navigation}) => {
               placeholder="Введите название плана"
               maxLength={30}
               value={newPlan.title}
-              onChangeText={(text) => {
-                handlePlanInputChange('title', text);
-              }}
+              onChangeText={(text) => handlePlanInputChange('title', text)}
             />
           </View>
 
@@ -267,34 +299,32 @@ const PlanCreationScreen = ({navigation}) => {
             <Text style={styles.label}>Описание плана</Text>
             <TextInput
               style={styles.input}
-              multiline={true} // Включает ввод в несколько строк
+              multiline
               numberOfLines={4}
               placeholder="Введите описание плана"
               value={newPlan.description}
               maxLength={250}
-              onChangeText={(description) => {
-                handlePlanInputChange('description', description);
-              }}
+              onChangeText={(desc) => handlePlanInputChange('description', desc)}
             />
           </View>
         </View>
 
+        {/* Дни (Swiper) */}
         <View style={styles.picker}>
           <Swiper
             index={1}
             ref={swiper}
             loop={false}
             showsPagination={false}
-            onIndexChanged={ind => {
-              if (ind === 1) {
-                return; // Do nothing if it's the middle swiper (current week)
-              }
+            onIndexChanged={(ind) => {
+              if (ind === 1) return;
               setTimeout(() => {
                 const newIndex = ind - 1;
-                setWeekOffset(weekOffset + newIndex); // Move to previous/next week
-                swiper.current.scrollTo(1, false); // Reset swiper to the middle view
+                setWeekOffset(weekOffset + newIndex);
+                swiper.current.scrollTo(1, false);
               }, 100);
-            }}>
+            }}
+          >
             {days.map((daySet, index) => (
               <View style={styles.itemRow} key={index}>
                 {daySet.map((item, dateIndex) => {
@@ -302,7 +332,8 @@ const PlanCreationScreen = ({navigation}) => {
                   return (
                     <TouchableWithoutFeedback
                       key={dateIndex}
-                      onPress={() => changeDayTasks(item.dayIndex)}>
+                      onPress={() => changeDayTasks(item.dayIndex)}
+                    >
                       <View
                         style={[
                           styles.item,
@@ -310,12 +341,14 @@ const PlanCreationScreen = ({navigation}) => {
                             backgroundColor: '#76182a',
                             borderColor: '#76182a',
                           },
-                        ]}>
+                        ]}
+                      >
                         <Text
                           style={[
                             styles.itemWeekday,
                             isActive && { color: '#fff' },
-                          ]}>
+                          ]}
+                        >
                           {item.label}
                         </Text>
                       </View>
@@ -328,49 +361,70 @@ const PlanCreationScreen = ({navigation}) => {
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Button style={{ marginLeft: 16, borderColor: 'blue', borderWidth: 0.5, borderColor: 'grey' }} labelStyle={{ color: '#000' }} onPress={() => addDay()}>Добавить день</Button>
+          <Button
+            style={{ marginLeft: 16, borderWidth: 0.5, borderColor: 'grey' }}
+            labelStyle={{ color: '#000' }}
+            onPress={addDay}
+          >
+            Добавить день
+          </Button>
           {days[0].length > 1 && (
-            <Button style={{ marginLeft: 5, borderColor: 'blue', borderWidth: 0.5, borderColor: '#76182a' }} labelStyle={{color: '#000'}} onPress={() => removeLastDay()}>Удалить день</Button>
+            <Button
+              style={{ marginLeft: 5, borderWidth: 0.5, borderColor: '#76182a' }}
+              labelStyle={{ color: '#000' }}
+              onPress={removeLastDay}
+            >
+              Удалить день
+            </Button>
           )}
         </View>
 
+        {/* Список задач для текущего дня */}
         <View style={{ flex: 1, paddingHorizontal: 16, paddingVertical: 10 }}>
           <Text style={styles.subtitle}>Задачи для дня {currentDay + 1}</Text>
           <View style={styles.container}>
-            <Button style={{ marginLeft: 5, borderColor: 'blue', borderWidth: 0.5, borderColor: '#76182a'}} labelStyle={{color: '#000'}} onPress={() => handleOpenBottomSheet()}>Добавить задачу</Button>
+            <Button
+              style={{ marginLeft: 5, marginBottom: 15, borderWidth: 0.5, borderColor: '#76182a'}}
+              labelStyle={{ color: '#000' }}
+              onPress={handleOpenBottomSheet}
+            >
+              Добавить задачу
+            </Button>
             <FlatList
               data={allTasksForPlan.filter((task) => task.dayNumber === currentDay)}
               renderItem={renderTaskItem}
+              keyExtractor={(item, index) => index.toString()}
             />
           </View>
         </View>
 
+        {/* Кнопка "Создать план" */}
         <View style={styles.footer}>
-          <TouchableOpacity onPress={handlePlanToServer}>
-            <View style={styles.btn}>
-              <Text style={styles.btnText}>Создать!</Text>
-            </View>
+          <TouchableOpacity
+            style={[styles.btn, isPlanCreationButtonDisabled && styles.btnDisabled]}
+            disabled={isPlanCreationButtonDisabled}
+            onPress={handlePlanToServer}
+          >
+            <Text style={styles.btnText}>Создать!</Text>
           </TouchableOpacity>
         </View>
       </View>
-      <BottomSheet ref={bottomSheetRef} snapPoints={['92%']} index={-1}>
+
+      {/* BottomSheet для создания новой задачи */}
+      <BottomSheet ref={bottomSheetRef} snapPoints={['96%']} index={-1}>
         <View style={styles.contentContainer}>
           <Text style={styles.header}>Создать задачу</Text>
-
-          {/* Task Title */}
+          
           <View style={styles.fieldContainer}>
             <Text style={styles.label}>Название задачи</Text>
             <TextInput
               style={styles.input}
               placeholder="Введите название задачи"
               value={newTask.title}
-              onChangeText={(text) => {
-                handleTaskInputChange('title', text);
-              }}
+              onChangeText={(text) => handleTaskInputChange('title', text)}
             />
           </View>
 
-          {/* Task Description */}
           <View style={styles.fieldContainer}>
             <Text style={styles.label}>Описание</Text>
             <TextInput
@@ -393,52 +447,67 @@ const PlanCreationScreen = ({navigation}) => {
             />
           </View>
 
-          {showTimeTaskFields && <View style={styles.timeContainer}>
-            <View style={styles.timeField}>
-              <Text style={styles.label}>Начало</Text>
-              <TouchableOpacity onPress={() => showDatePicker('startTime')}>
-                <Text style={styles.dateText}>
-                  {newTask.startTime
-                    ? newTask.startTime.toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : 'Выберите время'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.timeField}>
-              <Text style={styles.label}>Конец</Text>
-              <TouchableOpacity onPress={() => showDatePicker('endTime')}>
-                <Text style={styles.dateText}>
-                  {newTask.endTime
-                    ? newTask.endTime.toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : 'Выберите время'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+          {/* Теги */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Теги</Text>
+            <FlatList
+              data={availableTags}
+              keyExtractor={(item) => item.label}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.tag,
+                    { backgroundColor: item.color },
+                    newTask.tag === item.label && styles.selectedTag,
+                  ]}
+                  onPress={() => handleTagToggle(item.label)}
+                >
+                  <Text
+                    style={[
+                      styles.tagText,
+                      newTask.tag === item.label && styles.selectedTagText,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
 
-            {showPicker && (
-              <DateTimePicker
-                value={
-                  pickerField === 'date'
-                    ? new Date(newTask.date)
-                    : newTask[pickerField] instanceof Date
-                    ? newTask[pickerField]
-                    : new Date()
-                }
-                mode={pickerMode}
-                is24Hour
-                display="default"
-                onChange={handlePickerChange}
-              />
-            )}
-          </View>}
+          {showTimeTaskFields && (
+            <View style={styles.timeContainer}>
+              <View style={styles.timeField}>
+                <Text style={styles.label}>Начало</Text>
+                <TouchableOpacity onPress={() => showDatePicker('startTime')}>
+                  <Text style={styles.dateText}>
+                    {newTask.startTime
+                      ? newTask.startTime.toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : 'Выберите время'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.timeField}>
+                <Text style={styles.label}>Конец</Text>
+                <TouchableOpacity onPress={() => showDatePicker('endTime')}>
+                  <Text style={styles.dateText}>
+                    {newTask.endTime
+                      ? newTask.endTime.toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : 'Выберите время'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
-          {/* Is Meal */}
           <View style={styles.switchContainer}>
             <Text style={styles.label}>Прием пищи</Text>
             <Switch
@@ -471,19 +540,94 @@ const PlanCreationScreen = ({navigation}) => {
           </View>
 
           <View style={styles.fieldContainer}>
-            <TouchableOpacity style={[styles.btn, isCreationButtonDisabled && styles.btnDisabled]} disabled={isCreationButtonDisabled} onPress={handleCreateTask}>
+            <TouchableOpacity
+              style={[styles.btn, isCreationButtonDisabled && styles.btnDisabled]}
+              disabled={isCreationButtonDisabled}
+              onPress={handleCreateTask}
+            >
               <Text style={styles.btnText}>Создать задачу</Text>
             </TouchableOpacity>
           </View>
         </View>
       </BottomSheet>
+
+      {/* Модальное окно для DateTimePicker */}
+      {showPicker && (
+        <View style={styles.pickerModal}>
+          <View style={styles.pickerInnerContainer}>
+            <DateTimePicker
+              value={
+                newTask[pickerField] instanceof Date
+                  ? newTask[pickerField]
+                  : new Date()
+              }
+              mode={pickerMode}
+              is24Hour
+              display="spinner"
+              onChange={handlePickerChange}
+              style={{ width: '100%' }}
+            />
+            <Button
+              onPress={() => setShowPicker(false)}
+              mode="contained"
+              style={{ marginTop: 10, backgroundColor: 'black' }}
+            >
+              Закрыть
+            </Button>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
-}
+};
+
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  // Пример стилей для задачи и кнопки "Удалить"
+  taskItemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: 6,
+    paddingRight: 42,
+    justifyContent: 'space-between'
+  },
+  deleteButton: {
+    backgroundColor: '#b00000',
+    paddingVertical: 10,
+    paddingHorizontal: 9,
+    marginBottom: 6,
+    marginLeft: 10,
+    borderRadius: 4,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  header: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  pickerModal: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+    position: 'absolute', 
+    width: '100%', 
+    height: '100%', 
+    justifyContent: 'center', 
+    alignItems: 'center'
+  },
+  pickerInnerContainer: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 16,
+    width: '90%'
   },
   header: {
     fontSize: 20,
@@ -496,6 +640,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1d1d1d',
     paddingTop: 10,
+  },
+  tag: {
+    padding: 10,
+    margin: 5,
+    borderWidth: 1,
+    borderRadius: 8,
+    borderColor: '#ddd',
+  },
+  selectedTag: {
+    borderWidth: 2,
+    borderColor: '#76182a',
+  },
+  tagText: {
+    color: '#666',
+    fontWeight: '600',
+  },
+  selectedTagText: {
+    color: '#76182a',
+    fontWeight: 'bold',
   },
   picker: {
     flex: 1,
@@ -612,7 +775,7 @@ const styles = StyleSheet.create({
   },
   timeField: {
     flex: 1,
-    marginHorizontal: 8,
+    marginBottom: 5,
   },
   switchContainer: {
     flexDirection: 'row',

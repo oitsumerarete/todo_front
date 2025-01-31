@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { Avatar, Card, Button, ProgressBar } from 'react-native-paper';
@@ -6,20 +6,13 @@ import axios from 'axios';
 import API_URL from '../../config';
 import TodayTasks from './TodayTasks';
 import MyOriginalPlans from './MyOriginalPlans';
+import Icon from 'react-native-vector-icons/MaterialIcons'; // Убедись, что эта библиотека установлена
+
 
 export default function HomeScreen({ navigation }) {
   const [todayTasks, setTodayTasks] = useState([]);
+  const [completedTasksLength, setCompletedTasksLength] = useState(0);
   const [userOriginalPlans, setUserOriginalPlans] = useState([]);
-
-  const handleLogout = async () => {
-    try {
-      await AsyncStorage.removeItem('token');
-      navigation.replace('Login');
-    } catch (error) {
-      console.log('Error clearing user token: ', error);
-    }
-  };
-
   const getBearerToken = useCallback(async () => {
     const token = await AsyncStorage.getItem('token');
     if (!token) {
@@ -27,9 +20,6 @@ export default function HomeScreen({ navigation }) {
     }
     return token;
   }, []);
-
-
-  console.log(todayTasks)
 
   const fetchUserInfo = useCallback(async () => {
     try {
@@ -54,19 +44,31 @@ export default function HomeScreen({ navigation }) {
     fetchUserInfo();
   }, [fetchUserInfo]);
 
-  const completedTasks = todayTasks.filter((task) => task.status === 'done').length;
+  useEffect(() => {
+    setCompletedTasksLength(todayTasks?.filter((task) => task.status === 'done')?.length || 0)
+  }, [todayTasks])
+
+  const handleSettingsPress = () => {
+    // Обработчик нажатия на шестерёнку
+    console.log('Settings pressed');
+  };
 
   const renderHeader = () => (
     <>
       {/* Top Section: User Overview */}
       <View style={styles.topSection}>
-        <Avatar.Image size={60} source={{ uri: 'https://www.1zoom.me/big2/62/199578-yana.jpg' }} />
+        <Avatar.Image
+          size={60}
+          source={{ uri: 'https://www.1zoom.me/big2/62/199578-yana.jpg' }}
+        />
         <View style={styles.userInfo}>
           <Text style={styles.userName}>Hello, world!</Text>
           <Text style={styles.userStatus}>Status: Focused</Text>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Выйти</Text>
+          <TouchableOpacity style={styles.settingsButton} onPress={() =>
+          navigation.navigate('SettingsScreen')
+        }>
+          <Icon name="settings" size={30} color="#000" />
         </TouchableOpacity>
       </View>
 
@@ -74,11 +76,17 @@ export default function HomeScreen({ navigation }) {
 
       <TouchableOpacity onPress={() => navigation.navigate('Мой план')} >
       <Card style={styles.taskCard}>
-          <View style={styles.container}>
-            <Text style={styles.text}>
-              {`Задачи выполнены: ${completedTasks} из ${todayTasks.length}`}
-            </Text>
-            <ProgressBar progress={completedTasks / todayTasks.length || 0} color="#6200ee" style={styles.progressBar} />
+        <View style={styles.container}>
+          <Text style={styles.text}>
+            {`Задачи выполнены: ${completedTasksLength} из ${todayTasks?.length || 0}`}
+          </Text>
+          <ProgressBar 
+            progress={completedTasksLength / todayTasks?.length || 0} 
+            color="#c20020" 
+            style={styles.progressBar} 
+          />
+          {/* Разделитель */}
+          <View style={styles.separator} />
         </View>
         <Card.Title
           style={{ paddingLeft: 10 }}
@@ -86,8 +94,21 @@ export default function HomeScreen({ navigation }) {
           title="Активные задачи на сегодня:"
         />
 
-        <TodayTasks data={todayTasks.slice(0, 5)}/>
+        <TodayTasks 
+          data={todayTasks
+            ?.sort((a, b) => {
+              if (a.status === "done" && b.status !== "done") {
+                return 1;
+              } else if (a.status !== "done" && b.status === "done") {
+                return -1;
+              } else {
+                return 0;
+              }
+            })
+            .slice(0, 5)}
+        />
       </Card>
+
       </TouchableOpacity>
 
       <Button
@@ -134,16 +155,29 @@ const styles = StyleSheet.create({
   progressBar: {
     marginTop: 5,
     width: '100%',
-    height: 10,
+    height: 12,
     borderRadius: 5,
   },
   topSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    justifyContent: 'space-between',
+    padding: 10,
   },
   userInfo: {
-    marginLeft: 16,
+    flex: 1,
+    marginLeft: 10,
+  },
+  userName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  userStatus: {
+    fontSize: 14,
+    color: 'gray',
+  },
+  settingsButton: {
+    padding: 5,
   },
   userName: {
     fontSize: 20,
@@ -158,6 +192,9 @@ const styles = StyleSheet.create({
   logoutText: {
     fontWeight: 'bold',
   },
+  text: {
+    fontSize: 16,
+  },
   taskCard: {
     borderColor: '#76182a',
     borderWidth: 0.2,
@@ -165,5 +202,10 @@ const styles = StyleSheet.create({
     padding: 14,
     backgroundColor: '#ffffff',
     borderRadius: 12,
+  },
+  separator: {
+    marginTop: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc', // Светло-серый цвет
   },
 });

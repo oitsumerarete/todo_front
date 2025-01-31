@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   View,
   FlatList,
+  Modal,
   Text,
   TouchableOpacity,
 } from 'react-native';
@@ -20,19 +21,22 @@ const { width } = Dimensions.get('window');
 const PlanStoreScreen = ({ route }) => {
   const { planId } = route.params;
   const swiper = useRef();
-  const [currentDay, setCurrentDay] = useState(0); // Tracks the selected day index (e.g., first day is 0)
+  const [currentDay, setCurrentDay] = useState(1); // Tracks the selected day index (e.g., first day is 0)
   const [currentDayTasks, setCurrentDayTasks] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [planTitle, setPlanTitle] = useState('');
   const [weekOffset, setWeekOffset] = useState(0); // Keeps track of how many weeks we've scrolled
+  const [isUserHasOtherActivePlan, setIsUserHasOtherActivePlan] = useState(false); // Keeps track of how many weeks we've scrolled
   const [numberOfDaysForPlan, setNumberOfDaysForPlan] = useState(0);
+  const [isModalVisible, setIsModalVisible] = useState(false); // Состояние модального окна
+
 
   const changeDayTasks = (dayIndex) => {
-    setCurrentDay(dayIndex);
-    setCurrentDayTasks(tasks.filter((task) => task.dayNumber === dayIndex + 1))
-  }
+    setCurrentDay(dayIndex + 1); // Индексация начинается с 0, но dayNumber с 1
+    setCurrentDayTasks(tasks.filter((task) => task.dayNumber === dayIndex + 1));
+  };
 
 
   const renderTaskItem = ({ item }) => <OriginalTaskCard task={item} />;
@@ -45,20 +49,16 @@ const PlanStoreScreen = ({ route }) => {
       return Array.from({ length: 7 })
         .map((_, index) => {
           const dayIndex = (weekOffset + adj) * 7 + index;
-          if (dayIndex < 0 || totalDaysCount >= numberOfDaysForPlan) return null; // Пропускаем отрицательные дни
-
-          totalDaysCount += 1;
+          if (dayIndex < 0 || dayIndex >= numberOfDaysForPlan) return null;
           return {
-            label: `${dayIndex + 1} день`, // Преобразуем dayIndex в "1 день", "2 день" и т.д.
+            label: `${dayIndex + 1} день`,
             dayIndex,
           };
         })
-        .filter(day => day !== null); // Убираем null значения
-    }).filter((weeks) => weeks.length);
+        .filter(day => day !== null);
+    }).filter(weeks => weeks.length);
+    
   }, [weekOffset, numberOfDaysForPlan]);
-
-  console.log(days)
-  console.log(numberOfDaysForPlan)
 
   const getBearerToken = useCallback(async () => {
     const token = await AsyncStorage.getItem('token');
@@ -78,11 +78,14 @@ const PlanStoreScreen = ({ route }) => {
       });
 
       setPlanTitle(response.data.title);
+      setIsUserHasOtherActivePlan(response.data.isActivePlanExists)
 
       setTasks(response.data.tasks);
-      setCurrentDayTasks(response.data.tasks.filter((task) => task.dayNumber === currentDay + 1));
       const maxNumber = Math.max(...response.data.tasks.map(item => item.dayNumber));
       setNumberOfDaysForPlan(maxNumber);
+      setCurrentDay(1);
+      setCurrentDayTasks(response.data.tasks.filter(task => task.dayNumber === 1));
+
     } catch (err) {
       if (err.response?.status === 401) {
         setError('Session expired. Please log in again.');
@@ -103,6 +106,7 @@ const PlanStoreScreen = ({ route }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      setIsModalVisible(false);
     } catch (err) {
       console.log(err)
       if (err.response?.status === 401) {
@@ -114,6 +118,13 @@ const PlanStoreScreen = ({ route }) => {
       setLoading(false);
     }
   };  
+  const onStartButtonPress = () => {
+    if (isUserHasOtherActivePlan) {
+      setIsModalVisible(true); // Показать модальное окно, если у пользователя есть другой активный план
+    } else {
+      handleStartPlan(); // Запустить план, если нет другого активного плана
+    }
+  };
 
   useEffect(() => {
     fetchTasks();
@@ -132,20 +143,16 @@ const PlanStoreScreen = ({ route }) => {
             ref={swiper}
             loop={false}
             showsPagination={false}
-            onIndexChanged={ind => {
-              if (ind === 1) {
-                return; // Do nothing if it's the middle swiper (current week)
-              }
-              setTimeout(() => {
-                const newIndex = ind - 1;
-                setWeekOffset(weekOffset + newIndex); // Move to previous/next week
-                swiper.current.scrollTo(1, false); // Reset swiper to the middle view
-              }, 100);
+            onIndexChanged={(ind) => {
+              if (ind === 1) return; // Оставляем текущий
+              const direction = ind - 1; // -1 для влево, 1 для вправо
+              setWeekOffset(prevOffset => prevOffset + direction);
+              requestAnimationFrame(() => swiper.current.scrollTo(1, false)); // Более плавный переход
             }}>
             {days.map((daySet, index) => (
               <View style={styles.itemRow} key={index}>
                 {daySet.map((item, dateIndex) => {
-                  const isActive = currentDay === item.dayIndex;
+                  const isActive = currentDay === item.dayIndex + 1;
                   return (
                     <TouchableWithoutFeedback
                       key={dateIndex}
@@ -175,7 +182,7 @@ const PlanStoreScreen = ({ route }) => {
         </View>
 
         <View style={{ flex: 1, paddingHorizontal: 16, paddingVertical: 10 }}>
-          <Text style={styles.subtitle}>{currentDay + 1} день</Text>
+          <Text style={styles.subtitle}>{currentDay} день</Text>
           <View style={styles.container}>
               <FlatList
                 data={currentDayTasks}
@@ -187,13 +194,28 @@ const PlanStoreScreen = ({ route }) => {
 
         <View style={styles.footer}>
           <TouchableOpacity
-            onPress={handleStartPlan}>
+            onPress={onStartButtonPress}>
             <View style={styles.btn}>
               <Text style={styles.btnText}>Начать сейчас!</Text>
             </View>
           </TouchableOpacity>
         </View>
       </View>
+      <Modal visible={isModalVisible} transparent animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalText}>Если вы начнете этот план, ваш текущий план завершится. Вы уверены?</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity onPress={() => setIsModalVisible(false)} style={[styles.modalButton, styles.cancelButton]}>
+                <Text style={styles.modalButtonText}>Отмена</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleStartPlan} style={[styles.modalButton, styles.confirmButton]}>
+                <Text style={styles.modalButtonText}>Начать!</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -289,6 +311,48 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 26,
     fontWeight: '600',
+    color: '#fff',
+  },
+  
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: 320,
+    padding: 20,
+    backgroundColor: 'white',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 5,
+  },
+  cancelButton: {
+    backgroundColor: '#000',
+    marginRight: 10,
+  },
+  confirmButton: {
+    backgroundColor: '#76182a',
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
     color: '#fff',
   },
 });

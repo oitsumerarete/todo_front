@@ -32,6 +32,7 @@ const AllPlansStoreScreen = ({ navigation }) => {
       const response = await axios.get(`${API_URL}/original/plans`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
       setFilteredPlans(response.data);
       setPlanCategories(['Туризм', 'Фитнес', 'Образование', 'Здоровье', 'Бизнес']);
     } catch (err) {

@@ -19,9 +19,8 @@ import { FAB } from 'react-native-paper';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { format } from 'date-fns';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-
+import { MaterialIcons } from '@expo/vector-icons'; // Используем библиотеку иконок
 import TaskItem from './TaskItem';
 import API_URL from '../../config';
 
@@ -34,6 +33,7 @@ const PlanScreen = () => {
   const [pickerMode, setPickerMode] = useState('date');
   const [pickerField, setPickerField] = useState(null);
   const [isModalVisible, setModalVisible] = useState(false);
+  const [showTimeTaskFields, setShowTimeTaskFields] = useState(false);
 
   // Function to get date in 'YYYY-MM-DD' format
   const getFormattedDate = (date) => {
@@ -287,7 +287,7 @@ const PlanScreen = () => {
   
       await axios.put(
         `${API_URL}/plans/tasks/${taskId}`,
-        { status: newStatus },
+        { status: newStatus, planId: plan.planId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
     } catch (err) {
@@ -320,7 +320,7 @@ const PlanScreen = () => {
   
       await axios.put(
         `${API_URL}/plans/tasks/${taskId}`,
-        { status: newStatus, lastTaskGoingToBeDone: isLastTaskForDayToDoGoingToBeDone, originalPlanId },
+        { status: newStatus, planId: plan.planId,lastTaskGoingToBeDone: isLastTaskForDayToDoGoingToBeDone, originalPlanId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -363,9 +363,6 @@ const PlanScreen = () => {
     setModalVisible(false);
     setPendingTask(null);
   };
-
-  console.log(isTodayDayComleted)
-  
 
   const renderItem = ({ item, index, drag, isActive }) => {
     const itemDateLocal = new Date(item.date).toLocaleDateString('en-CA');
@@ -446,9 +443,16 @@ const PlanScreen = () => {
           <Text style={styles.planTitle}>{plan.title}</Text>
           <Text style={styles.planDetails}>{plan.description}</Text>
         </View>
-        <View style={styles.circle}>
-          <Text style={styles.circleText}>{taskSummaryByDate[selectedDate]?.mandatoryNotDone || 0}</Text>
+        <View style={[styles.circle, styles.row]}>
+          <MaterialIcons
+            name="error" // Иконка для обязательной задачи
+            size={25}
+            color="#76182a"
+            style={styles.mandatoryIcon}
+          />
+          <Text style={styles.text}>{taskSummaryByDate[selectedDate]?.mandatoryNotDone || 0}</Text>
         </View>
+
       </View>
 
       {/* Calendar */}
@@ -466,7 +470,7 @@ const PlanScreen = () => {
       {/* Tasks for the Selected Day */}
       {selectedDate && 
         <View style={styles.taskListContainer}>
-          {isMealToday && 
+          {isMealToday &&
             <View style={styles.containerPCF}>
               {mealsStat.map((stat, index) => (
                 <View key={index} style={styles.statBox}>
@@ -483,6 +487,7 @@ const PlanScreen = () => {
             renderItem={renderItem}
             keyExtractor={(item) => item.taskId.toString()}
             onDragEnd={onDragEnd}
+            contentContainerStyle={{ paddingBottom: 70 }}
           />
         </View>
       }
@@ -494,7 +499,7 @@ const PlanScreen = () => {
       />
 
       {/* Bottom Sheet for Task Creation */}
-      <BottomSheet ref={bottomSheetRef} snapPoints={['72%']} index={-1}>
+      <BottomSheet ref={bottomSheetRef} snapPoints={['74.7%']} index={-1}>
         <View style={styles.contentContainer}>
           <Text style={styles.header}>Создать задачу</Text>
 
@@ -521,6 +526,17 @@ const PlanScreen = () => {
             />
           </View>
 
+          <View style={styles.toggleContainer}>
+            <Text>Указать время:</Text>
+            <Switch
+              thumbColor={showTimeTaskFields ? 'white' : 'gray'}
+              trackColor={{ false: '#76182a', true: '#76182a' }}
+              style={{ transform: [{ scaleX: 0.6 }, { scaleY: 0.6 }] }}
+              value={showTimeTaskFields}
+              onValueChange={setShowTimeTaskFields}
+            />
+          </View>
+
           {/* Date and Time */}
           <View style={styles.fieldContainer}>
             <Text style={styles.label}>Дата</Text>
@@ -528,39 +544,41 @@ const PlanScreen = () => {
               <Text style={styles.dateText}>
                 {newTask.date
                   ? new Date(newTask.date).toDateString()
-                  : 'Select Date'}
+                  : 'Выберите дату'}
               </Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.timeContainer}>
-            <View style={styles.timeField}>
-              <Text style={styles.label}>Начало</Text>
-              <TouchableOpacity onPress={() => showDatePicker('startTime')}>
-                <Text style={styles.dateText}>
-                  {newTask.startTime
-                    ? newTask.startTime.toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : 'Select Time'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.timeField}>
-              <Text style={styles.label}>Конец</Text>
-              <TouchableOpacity onPress={() => showDatePicker('endTime')}>
-                <Text style={styles.dateText}>
-                  {newTask.endTime
-                    ? newTask.endTime.toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : 'Select Time'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
 
+          {showTimeTaskFields && (
+            <View style={styles.timeContainer}>
+              <View style={styles.timeField}>
+                <Text style={styles.label}>Начало</Text>
+                <TouchableOpacity onPress={() => showDatePicker('startTime')}>
+                  <Text style={styles.dateText}>
+                    {newTask.startTime
+                      ? newTask.startTime.toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : 'Выберите время'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.timeField}>
+                <Text style={styles.label}>Конец</Text>
+                <TouchableOpacity onPress={() => showDatePicker('endTime')}>
+                  <Text style={styles.dateText}>
+                    {newTask.endTime
+                      ? newTask.endTime.toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : 'Выберите время'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
           {/* Is Mandatory */}
           <View style={styles.switchContainer}>
             <Text style={styles.label}>Прием пищи</Text>
@@ -636,6 +654,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
+
+  toggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   modalContent: {
     width: '80%',
     padding: 20,
@@ -692,19 +716,22 @@ const styles = StyleSheet.create({
     color: 'gray',
   },
   circle: {
-    width: 40, // Размер круга
-    height: 40, // Размер круга
-    borderRadius: 30, // Радиус для создания круга
-    backgroundColor: 'white', // Белый фон внутри
-    borderWidth: 2, // Толщина обводки
-    borderColor: '#CD5C5C', // Красная обводка
-    alignItems: 'center', // Центрируем текст по горизонтали
-    justifyContent: 'center', // Центрируем текст по вертикали
+    // Ваши текущие стили для круга
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  circleText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#76182a'
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  text: {
+    marginLeft: 5,
+    fontSize: 20,
+    color: '#000',
   },
   taskListContainer: { flex: 1, padding: 16 },
   tasksHeader: { fontSize: 18, marginBottom: 8, fontWeight: 'bold' },
@@ -758,7 +785,7 @@ const styles = StyleSheet.create({
   },
   timeField: {
     flex: 1,
-    marginHorizontal: 8,
+    marginBottom: 5,
   },
   switchContainer: {
     flexDirection: 'row',

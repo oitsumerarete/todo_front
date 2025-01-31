@@ -1,61 +1,133 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import React from "react";
+import { View, Text, Image, StyleSheet } from "react-native";
+
+const availableTags = [
+  { label: 'Фитнес', color: '#FFE4E6' }, // приглушённый розовый
+  { label: 'Питание', color: '#FFF5E6' }, // приглушённый оранжевый
+  { label: 'Работа', color: '#FFFFE6' }, // приглушённый жёлтый
+  { label: 'Отдых', color: '#E6FFEB' }, // приглушённый зелёный
+  { label: 'Путешествия', color: '#E6F7FF' }, // приглушённый голубой
+  { label: 'Саморазвитие', color: '#F3E6FF' }, // приглушённый фиолетовый
+  { label: 'Семья', color: '#FFEDED' }, // приглушённый коралловый
+  { label: 'Быт', color: '#E8FFE8' }, // приглушённый лаймовый
+  { label: 'Здоровье', color: '#E8F3FF' }, // приглушённый синий
+  { label: 'Социальная активность', color: '#FBE8FF' }, // приглушённый сиреневый
+];
 
 const TaskCard = ({ task }) => {
+  const formatTime = (time) => {
+    if (!time) return ''; // Проверяем, что значение не пустое
+    if (typeof time === 'string') return time; // Если уже строка, просто возвращаем
+    if (time instanceof Date) {
+      return time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); // Форматируем без секунд
+    }
+    return String(time); // На случай, если это число или другой формат
+  };
+
+  console.log('task123', task)
   return (
     <View style={styles.card}>
-      <View style={styles.textContainer}>
-        <Text style={styles.title}>{task.title}</Text>
-        <Text style={styles.description}>{task.description}</Text>
-        {task.duration && <Text style={styles.duration}>Длительность: {task.durationMinutes} мин.</Text>}
-        {task.isMandatory && <Text style={styles.mandatory}>Обязательная задача</Text>}
-      </View>
-      <Image
+      {/* Изображение сбоку */}
+      {task.image && (
+        <Image
         source={{ uri: task.image }}
         style={styles.image}
       />
+      )}
+      {/* Контейнер для текста */}
+      <View style={styles.textContainer}>
+        <View style={styles.header}>
+          <Text style={styles.title}>{task.title}</Text>
+          <Text
+            style={[
+              styles.status,
+              { backgroundColor: availableTags.find(tag => tag.label === task.tag)?.color || 'transparent', color: '#660', fontWeight: '600', }
+            ]}
+          >
+            {task.tag}
+          </Text>
+        </View>
+        {task.startTime && task.endTime && <View style={styles.infoRow}>
+          <Text style={styles.label}>Время:</Text>
+          <Text style={styles.value}>{formatTime(task.startTime)} - {formatTime(task.endTime)}</Text>
+        </View>}
+        
+        {task.isMandatory && <Text style={styles.mandatory}>Обязательная задача</Text>}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
-    marginTop: 15,
-    flexDirection: 'row', // Размещаем элементы в строку
-    alignItems: 'center', // Выравниваем элементы по вертикали
+    backgroundColor: "#fff",
+    borderRadius: 10,
     padding: 10,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    elevation: 2,
     marginBottom: 10,
-  },
-  textContainer: {
-    flex: 1, // Занимает оставшееся пространство
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  description: {
-    fontSize: 14,
-    marginBottom: 5,
-    color: '#666',
-  },
-  duration: {
-    fontSize: 12,
-    color: '#888',
-  },
-  mandatory: {
-    fontSize: 12,
-    color: 'red',
-    marginTop: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    flexDirection: "row", // Горизонтальное размещение
+    alignItems: "center",
   },
   image: {
     width: 70,
     height: 70,
-    borderRadius: 8,
-    marginLeft: 10, // Отступ между текстом и изображением
+    borderRadius: 10,
+    marginRight: 10, // Отступ между изображением и текстом
+  },
+  textContainer: {
+    flex: 1,
+    flexDirection: "column",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+    flex: 1, // Для переноса текста, если он длинный
+  },
+  status: {
+    fontSize: 14,
+    fontWeight: "600",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 5,
+  },
+  pending: {
+    backgroundColor: "#ffebcc",
+    color: "#b35900",
+  },
+  completed: {
+    backgroundColor: "#dff0d8",
+    color: "#3c763d",
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  label: {
+    fontSize: 14,
+    color: "#555",
+  },
+  value: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+  },
+  mandatory: {
+    marginTop: 7,
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#c0392b",
   },
 });
 

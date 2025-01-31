@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import LoginScreen from './screens/LoginScreen';
 import HomeScreen from './screens/HomeScreen/HomeScreen';
+import SettingsScreen from './screens/HomeScreen/SettingsScreen';
 import UsersPlanScreen from './screens/UsersPlanScreen/UsersPlanScreen';
 import OriginalPlansStoreScreen from './screens/OriginalPlansStoreScreen';
 import PlanStoreScreen from './screens/PlanStoreScreen';
@@ -68,6 +69,7 @@ export default function App() {
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Login">
         <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
         <Tab.Screen name="PlanStoreScreen" component={PlanStoreScreen} />
         <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
         <Stack.Screen name="PlanCreationScreen" component={PlanCreationScreen} />
