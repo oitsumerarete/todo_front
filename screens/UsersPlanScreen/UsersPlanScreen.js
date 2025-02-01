@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
   Button,
   Switch,
   Modal,
@@ -25,6 +26,7 @@ import TaskItem from './TaskItem';
 import API_URL from '../../config';
 
 const PlanScreen = () => {
+  const [isLoading, setIsLoading] = useState(false);
   const [tasksByDate, setTasksByDate] = useState({});
   const [selectedDate, setSelectedDate] = useState(null);
   const [markedDates, setMarkedDates] = useState({});
@@ -61,12 +63,18 @@ const PlanScreen = () => {
   const [pendingTask, setPendingTask] = useState(null);
   const [isTodayDayComleted, setIsTodayDayCompleted] = useState(false);
   const [originalPlanId, setOriginalPlanId] = useState();
-  const [mealsStat, setMealsStat] = useState([
-    { label: "ккал", value: 0, color: "#3b6b3b" },
-    { label: "белки", value: 0, color: "#263d26" },
-    { label: "углеводы", value: 0, color: "#3d645b" },
-    { label: "жиры", value: 0, color: "#6a7346" }
-  ])
+  const [mealsStatDone, setMealsStatDone] = useState({
+    fats: 0,
+    carbs: 0,
+    proteins: 0,
+    kcal: 0,
+  })
+  const [mealsStatAll, setMealsStatAll] = useState({
+    fats: 0,
+    carbs: 0,
+    proteins: 0,
+    kcal: 0,
+  })
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -150,6 +158,7 @@ const PlanScreen = () => {
 
   const fetchPlan = async () => {
     try {
+      setIsLoading(true);
       const token = await AsyncStorage.getItem('token');
       if (!token) {
         console.error('No token found');
@@ -200,6 +209,8 @@ const PlanScreen = () => {
       setSelectedDate(tasksByDateTemp[todayDate] ? todayDate : null);
     } catch (error) {
       console.error('Error fetching plan:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -397,26 +408,44 @@ const PlanScreen = () => {
     let fats = 0;
     let carbs = 0;
 
-    tasksForSelectedDate.map((task) => {
+    tasksForSelectedDate.filter((task) => task.status === 'done').map((task) => {
       if (task.calories !== null
         && task.proteins !== null
         && task.fats !== null
-        && task.carbs !== null) {
-        kcal += task.calories;
-        proteins += task.proteins;
-        fats += task.fats;
-        carbs += task.carbs;
+        && task.carbs !== null
+        && task.isMeal === true) {
+        kcal += task?.calories || 0;
+        proteins += task?.proteins || 0;
+        fats += task?.fats || 0;
+        carbs += task?.carbs || 0;
 
         setIsMealToday(true);
       }
     })
 
-    setMealsStat([
-      { label: "ккал", value: kcal, color: "#3b6b3b" },
-      { label: "белки", value: proteins, color: "#263d26" },
-      { label: "жиры", value: fats, color: "#6a7346" },
-      { label: "углеводы", value: carbs, color: "#3d645b" }
-    ])
+    setMealsStatDone({kcal, proteins, fats, carbs})
+
+    kcal = 0;
+    proteins = 0;
+    fats = 0;
+    carbs = 0;
+
+    tasksForSelectedDate.map((task) => {
+      if (task.calories !== null
+        && task.proteins !== null
+        && task.fats !== null
+        && task.carbs !== null
+        && task.isMeal === true) {
+        kcal += task?.calories || 0;
+        proteins += task?.proteins || 0;
+        fats += task?.fats || 0;
+        carbs += task?.carbs || 0;
+
+        setIsMealToday(true);
+      }
+    })
+
+    setMealsStatAll({kcal, proteins, fats, carbs});
   }, [tasksByDate[selectedDate]])
 
   const mergedMarkedDates = { ...markedDates };
@@ -445,7 +474,7 @@ const PlanScreen = () => {
         </View>
         <View style={[styles.circle, styles.row]}>
           <MaterialIcons
-            name="error" // Иконка для обязательной задачи
+            name="error-outline" // Иконка для обязательной задачи
             size={25}
             color="#76182a"
             style={styles.mandatoryIcon}
@@ -467,28 +496,53 @@ const PlanScreen = () => {
         }}
       />
 
+      {isLoading && !tasksForSelectedDate?.length && 
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color="#76182a" />
+      </View>}
+
       {/* Tasks for the Selected Day */}
       {selectedDate && 
         <View style={styles.taskListContainer}>
-          {isMealToday &&
-            <View style={styles.containerPCF}>
-              {mealsStat.map((stat, index) => (
-                <View key={index} style={styles.statBox}>
-                  <View style={[styles.bar, { backgroundColor: stat.color }]} />
-                  <Text style={styles.value}>{stat.value || 0}</Text>
-                  <Text style={styles.label}>{stat.label || 0}</Text>
-                </View>
-              ))}
+          {isMealToday && mealsStatAll.kcal &&
+            <View style={styles.planStatsContainer}>
+          
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{mealsStatDone.proteins || 0} / {mealsStatAll.proteins || 0}</Text>
+              <Text style={[styles.statLabel, { color: '#5CB85C' }]}>Белки</Text>
             </View>
+          
+            <View style={styles.divider} />
+          
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{mealsStatDone.fats || 0} / {mealsStatAll.fats || 0}</Text>
+              <Text style={[styles.statLabel, { color: '#F0AD4E' }]}>Жиры</Text>
+            </View>
+          
+            <View style={styles.divider} />
+          
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{mealsStatDone.carbs || 0} / {mealsStatAll.carbs || 0}</Text>
+              <Text style={[styles.statLabel, { color: '#5BC0DE' }]}>Углеводы</Text>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{mealsStatDone.kcal || 0} / {mealsStatAll.kcal || 0}</Text>
+              <Text style={[styles.statLabel, { color: '#D9534F' }]}>Ккал</Text>
+            </View>
+          
+          </View>
           }
 
-          <DraggableFlatList
+          {tasksForSelectedDate && <DraggableFlatList
             data={tasksForSelectedDate}
             renderItem={renderItem}
             keyExtractor={(item) => item.taskId.toString()}
             onDragEnd={onDragEnd}
             contentContainerStyle={{ paddingBottom: 70 }}
-          />
+          />}
         </View>
       }
 
@@ -602,7 +656,7 @@ const PlanScreen = () => {
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalText}>
-              Завершение этой задачи приведет к завершению дня. Вы уверены, что хотите завершить день?
+            Поздравляем! Вы завершили все обязательные задачи дня.{"\n"}Если это случайно, можно вернуться{"\n"} Завершить день?
             </Text>
             <View style={styles.buttonContainer}>
               <Button title="Да, завершить день" onPress={confirmDayCompletion} />
@@ -668,9 +722,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalText: {
-    fontSize: 16,
-    marginBottom: 20,
-    textAlign: 'center',
+    fontSize: 18, // Чуть больше шрифт для удобного чтения
+    marginBottom: 16, // Уменьшил отступ для визуального баланса
+    textAlign: 'center', // Центрируем текст
+    lineHeight: 24, // Добавил межстрочный интервал для читабельности
+    fontWeight: '500', // Полужирный текст для акцента
+    color: '#333', // Приятный нейтральный цвет вместо стандартного
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -680,6 +737,48 @@ const styles = StyleSheet.create({
   statBox: {
     alignItems: "center",
     width: "22%", // Adjust width for spacing
+  },
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  planStatsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    marginBottom: 10,
+    padding: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    // Тень для Android:
+    elevation: 2,
+    // Тень для iOS:
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  statBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statValue: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  statLabel: {
+    marginTop: 3,
+    fontSize: 14,
+    color: '#555',
+  },
+  divider: {
+    width: 2,
+    backgroundColor: '#eee',   // цвет вертикальной полоски
+    marginHorizontal: 8,
+    height: '70%',             // можно подрегулировать высоту
+    alignSelf: 'center',
   },
   bar: {
     width: "100%",
@@ -733,7 +832,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#000',
   },
-  taskListContainer: { flex: 1, padding: 16 },
+  taskListContainer: { flex: 1, padding: 12 },
   tasksHeader: { fontSize: 18, marginBottom: 8, fontWeight: 'bold' },
   fab: {
     position: 'absolute',

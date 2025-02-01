@@ -4,7 +4,6 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_URL from '../config';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { Avatar } from 'react-native-paper';
 
 const AllPlansStoreScreen = ({ navigation }) => {
   const [plans, setPlans] = useState([]);
@@ -93,16 +92,15 @@ const AllPlansStoreScreen = ({ navigation }) => {
   const renderPlanItem = ({ item }) => (
     <TouchableOpacity
       onPress={() =>
-        navigation.navigate('PlanStoreScreen', { planId: item.planId })
+        navigation.navigate('Страница плана', { planId: item.planId })
       }
       activeOpacity={0.7}
     >
       <View style={styles.planContainer}>
         {/* Header with Image and Title */}
         <View style={styles.header}>
-          <Avatar.Image
-            size={60}
-            source={{ uri: 'https://www.1zoom.me/big2/62/199578-yana.jpg' }}
+          <Image
+            source={{ uri: item.mainImageLink }}
             style={styles.avatar}
           />
           <View style={styles.titleContainer}>
@@ -116,9 +114,11 @@ const AllPlansStoreScreen = ({ navigation }) => {
 
         {/* Footer with details */}
         <View style={styles.footer}>
-          <Text style={styles.durationContainer}>
-            Длительность: <Text style={styles.duration}>10 дней</Text>
-          </Text>
+          {item.maxDayNumber && (
+            <Text style={styles.durationContainer}>
+              Длительность: <Text style={styles.duration}>{item.maxDayNumber} дней</Text>
+            </Text>
+          )}
           <View style={styles.likesContainer}>
             <Icon name="heart" size={25} color="#76182a" />
             <Text style={styles.likesText}>{item.likesCount}</Text>
@@ -214,11 +214,20 @@ const AllPlansStoreScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
   },
+  durationContainer: {
+    flexShrink: 1, // Чтобы текст не раздувал контейнер
+  },
+  likesContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: "auto", // Прижимает блок к правой стороне
+  },
+  
   header: {
     flexDirection: 'row', // Расположить элементы в строку
     alignItems: 'center', // Выравнивание по вертикали
@@ -226,6 +235,9 @@ const styles = StyleSheet.create({
   },
   avatar: {
     marginRight: 15, // Отступ между изображением и текстом
+    width: 60,
+    height: 60,
+    borderRadius: 10,
   },
   container: {
     flex: 1,
@@ -244,11 +256,6 @@ const styles = StyleSheet.create({
     maxHeight: 47,
     marginBottom: 10,
     padding: '10px',
-  },
-  likesContainer: {
-    marginTop: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   filterButton: {
     paddingHorizontal: 15,
@@ -284,7 +291,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#76182a',
-    backgroundColor: '#f3f0f0',
+    backgroundColor: '#fffafc',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,

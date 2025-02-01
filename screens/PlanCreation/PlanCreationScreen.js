@@ -67,7 +67,7 @@ const PlanCreationScreen = ({navigation}) => {
     dayNumber: '',
     startTime: null,
     endTime: null,
-    isMandatory: false,
+    isMandatory: true,
     isMeal: false,
     image: null,
     tag: ''
@@ -207,7 +207,7 @@ const PlanCreationScreen = ({navigation}) => {
       });
       
       if (response.data) {
-        navigation.navigate('PlanStoreScreen', { planId: response.data })
+        navigation.navigate('Страница плана', { planId: response.data })
       } else {
         navigation.navigate('HomeScreen')
       }

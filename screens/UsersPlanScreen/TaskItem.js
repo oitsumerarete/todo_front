@@ -31,17 +31,23 @@ const TaskItem = memo(({ item, drag, isActive, isToday, onStatusChange, isChecke
             <Text style={styles.taskTitle}>{item.title}</Text>
             {item.isMandatory && (
               <MaterialIcons
-                name="error" // Иконка для обязательной задачи
-                size={17}
+                name="error-outline" // Иконка для обязательной задачи
+                size={18}
                 color="#76182a"
                 style={styles.mandatoryIcon}
               />
             )}
           </View>
-          <Text style={styles.taskDescription}>{item.description}</Text>
-          <Text style={styles.taskTime}>
+          {item.startTime && item.endTime && <Text style={styles.taskTime}>
             {item.startTime} - {item.endTime}
-          </Text>
+          </Text>}
+
+          {item.isMeal && <View style={styles.nutrientsContainer}>
+            <Text style={[styles.nutrientText, { color: '#5CB85C' }]}>Б: {item.protein || 0}</Text>
+            <Text style={[styles.nutrientText, { color: '#F0AD4E' }]}>Ж: {item.fats || 0}</Text>
+            <Text style={[styles.nutrientText, { color: '#5BC0DE' }]}>У: {item.carbs || 0}</Text>
+            <Text style={[styles.nutrientText, { color: '#D9534F' }]}>Ккал: {item.calories || 0}</Text>
+          </View>}
         </View>
         <View style={styles.radioButtonContainer}>
           <RadioButton
@@ -68,9 +74,12 @@ const styles = StyleSheet.create({
   },
   taskItem: {
     padding: 10,
-    borderRadius: 5,
+    borderRadius: 8,
     marginVertical: 5,
-    opacity: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 4,
   },
   disabledTask: {
     opacity: 0.5,
@@ -95,6 +104,7 @@ const styles = StyleSheet.create({
   },
   mandatoryIcon: {
     marginLeft: 5,
+    marginTop: 2,
   },
   taskDescription: {
     fontSize: 14,
@@ -107,9 +117,18 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   taskImage: {
-    width: 50,
-    height: 50,
+    width: 60,
+    height: 60,
     borderRadius: 8,
     marginLeft: 5,
+  },
+  nutrientsContainer: {
+    flexDirection: 'row',
+    marginTop: 5,
+  },
+  nutrientText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    marginRight: 10,
   },
 });

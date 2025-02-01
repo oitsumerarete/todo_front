@@ -38,6 +38,12 @@ const TaskCard = ({ task }) => {
           <Text style={styles.label}>Время:</Text>
           <Text style={styles.value}>{formatTime(task.startTime)} - {formatTime(task.endTime)}</Text>
         </View>}
+        {task.isMeal && <View style={styles.    nutrientsContainer}>
+            <Text style={[styles.nutrientText, { color: '#5CB85C' }]}>Б: {task.protein || 0}</Text>
+            <Text style={[styles.nutrientText, { color: '#F0AD4E' }]}>Ж: {task.fats || 0}</Text>
+            <Text style={[styles.nutrientText, { color: '#5BC0DE' }]}>У: {task.carbs || 0}</Text>
+            <Text style={[styles.nutrientText, { color: '#D9534F' }]}>Ккал: {task.calories || 0}</Text>
+          </View>}
         {task.isMandatory && <Text style={styles.mandatory}>Обязательная задача</Text>}
       </View>
     </View>
@@ -114,6 +120,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "bold",
     color: "#c0392b",
+  },
+  nutrientsContainer: {
+    flexDirection: 'row',
+    marginTop: 5,
+  },
+  nutrientText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    marginRight: 10,
   },
 });
 

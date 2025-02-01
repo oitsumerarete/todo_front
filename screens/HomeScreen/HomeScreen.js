@@ -66,7 +66,7 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.userStatus}>Status: Focused</Text>
         </View>
           <TouchableOpacity style={styles.settingsButton} onPress={() =>
-          navigation.navigate('SettingsScreen')
+          navigation.navigate('Настройки')
         }>
           <Icon name="settings" size={30} color="#000" />
         </TouchableOpacity>
@@ -113,7 +113,6 @@ export default function HomeScreen({ navigation }) {
 
       <Button
         style={{
-          marginTop: -10,
           marginBottom: 10,
           borderColor: '#76182a',
           backgroundColor: '#76182a',

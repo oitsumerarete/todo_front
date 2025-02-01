@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import LoginScreen from './screens/LoginScreen';
@@ -15,7 +15,6 @@ import Icon from 'react-native-vector-icons/Ionicons';
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-
 LocaleConfig.locales['ru'] = {
   monthNames: [
     'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
@@ -27,12 +26,31 @@ LocaleConfig.locales['ru'] = {
   today: 'Сегодня'
 };
 
-// Применяем настройки русского языка
 LocaleConfig.defaultLocale = 'ru';
+
+const InvertedTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: '#ffffff',
+    card: '#ffffff',
+    text: '#76182a',
+    border: '#ffffff',
+    notification: '#ffffff',
+  },
+};
 
 function MainTabs() {
   return (
-    <Tab.Navigator>
+    <Tab.Navigator
+      screenOptions={{
+        tabBarActiveTintColor: '#76182a',
+        tabBarInactiveTintColor: '#d1a3a3',
+        tabBarStyle: { backgroundColor: '#ffffff' },
+        headerStyle: { backgroundColor: '#ffffff' },
+        headerTintColor: '#76182a',
+      }}
+    >
       <Tab.Screen
         name="Профиль"
         component={HomeScreen}
@@ -66,14 +84,20 @@ function MainTabs() {
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName="Login">
+    <NavigationContainer theme={InvertedTheme}>
+      <Stack.Navigator
+        initialRouteName="Login"
+        screenOptions={{
+          headerStyle: { backgroundColor: '#ffffff' },
+          headerTintColor: '#76182a',
+        }}
+      >
         <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
-        <Tab.Screen name="PlanStoreScreen" component={PlanStoreScreen} />
-        <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
+        <Stack.Screen name="Настройки" component={SettingsScreen} />
+        <Stack.Screen name="Страница плана" component={PlanStoreScreen} />
+        <Stack.Screen name="Поиск" component={MainTabs} options={{ headerShown: false }} />
         <Stack.Screen name="PlanCreationScreen" component={PlanCreationScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
-} 
+}

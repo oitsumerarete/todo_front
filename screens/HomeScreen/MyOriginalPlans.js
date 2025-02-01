@@ -6,7 +6,7 @@ const MyOriginalPlans = ({ plans, navigation, ListHeaderComponent, ListFooterCom
   const renderItem = ({ item }) => (
     <TouchableOpacity
       style={styles.itemContainer}
-      onPress={() => navigation.navigate('PlanStoreScreen', { planId: item.planId })}
+      onPress={() => navigation.navigate('Страница плана', { planId: item.planId })}
     >
       <Text style={styles.title}>{item.title}</Text>
 
