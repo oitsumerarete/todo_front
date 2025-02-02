@@ -6,13 +6,23 @@ import axios from 'axios';
 import API_URL from '../../config';
 import TodayTasks from './TodayTasks';
 import MyOriginalPlans from './MyOriginalPlans';
-import Icon from 'react-native-vector-icons/MaterialIcons'; // Убедись, что эта библиотека установлена
-
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function HomeScreen({ navigation }) {
   const [todayTasks, setTodayTasks] = useState([]);
   const [completedTasksLength, setCompletedTasksLength] = useState(0);
   const [userOriginalPlans, setUserOriginalPlans] = useState([]);
+  const [username, setUsername] = useState('');
+  const [userAvatar, setUserAvatar] = useState('');
+  const [error, setError] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchUserInfo();
+    }, [])
+  );
+
   const getBearerToken = useCallback(async () => {
     const token = await AsyncStorage.getItem('token');
     if (!token) {
@@ -28,7 +38,9 @@ export default function HomeScreen({ navigation }) {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setTodayTasks(response.data?.userPlan?.todayTasks);
+      setUsername(response.data?.user?.username);
+      setUserAvatar(response.data?.user?.avatar);
+      setTodayTasks(response.data?.userPlan?.todayTasks || []);
       setUserOriginalPlans(response.data?.userOriginalPlans);
     } catch (err) {
       console.log(err);
@@ -45,100 +57,105 @@ export default function HomeScreen({ navigation }) {
   }, [fetchUserInfo]);
 
   useEffect(() => {
-    setCompletedTasksLength(todayTasks?.filter((task) => task.status === 'done')?.length || 0)
-  }, [todayTasks])
+    setCompletedTasksLength(
+      todayTasks?.filter((task) => task.status === 'done')?.length || 0
+    );
+  }, [todayTasks]);
 
   const handleSettingsPress = () => {
-    // Обработчик нажатия на шестерёнку
     console.log('Settings pressed');
   };
 
-  const renderHeader = () => (
-    <>
-      {/* Top Section: User Overview */}
-      <View style={styles.topSection}>
-        <Avatar.Image
-          size={60}
-          source={{ uri: 'https://www.1zoom.me/big2/62/199578-yana.jpg' }}
-        />
-        <View style={styles.userInfo}>
-          <Text style={styles.userName}>Hello, world!</Text>
-          <Text style={styles.userStatus}>Status: Focused</Text>
+  const renderHeader = () => {
+    // Отфильтруем активные задачи (те, что не выполнены)
+    const activeTasks =
+      todayTasks?.filter((task) => task.status !== 'done') || [];
+
+    return (
+      <>
+        {/* Верхняя секция: информация о пользователе */}
+        <View style={styles.topSection}>
+          {userAvatar && (
+            <Avatar.Image size={60} source={{ uri: userAvatar }} />
+          )}
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>{username}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={() => navigation.navigate('Настройки')}
+          >
+            <Icon name="settings" size={30} color="#000" />
+          </TouchableOpacity>
         </View>
-          <TouchableOpacity style={styles.settingsButton} onPress={() =>
-          navigation.navigate('Настройки')
-        }>
-          <Icon name="settings" size={30} color="#000" />
+
+        {/* Блок задач */}
+        <TouchableOpacity onPress={() => navigation.navigate('Мой план')}>
+          <Card style={styles.taskCard}>
+            {todayTasks.length > 0 && <View style={styles.container}>
+              <Text style={styles.text}>
+                {`Задачи выполнены: ${completedTasksLength} из ${todayTasks?.length || 0}`}
+              </Text>
+              <ProgressBar
+                progress={
+                  todayTasks?.length > 0
+                    ? completedTasksLength / todayTasks.length
+                    : 0
+                }
+                color="#c20020"
+                style={styles.progressBar}
+              />
+              {/* Разделитель */}
+              <View style={styles.separator} />
+            </View>}
+            {todayTasks.length > 0 && <Card.Title
+              style={{ paddingLeft: 10 }}
+              titleStyle={{ fontSize: 20 }}
+              title="Активные задачи на сегодня:"
+            />}
+
+            {todayTasks.length > 0 ? (
+              // Если активные задачи есть – показываем их (сортировка по статусу может быть дополнительно добавлена)
+              <TodayTasks data={todayTasks.slice(0, 5)} />
+            ) : (
+              // Если активных задач нет – выводим сообщение
+              <Text style={styles.noTasksText}>
+                Пока активных задач на сегодня нет, начните новый план!
+              </Text>
+            )}
+          </Card>
         </TouchableOpacity>
-      </View>
 
-      {/* Task List */}
+        <Button
+          style={{
+            marginBottom: 10,
+            borderColor: '#76182a',
+            backgroundColor: '#76182a',
+            borderWidth: 1,
+          }}
+          labelStyle={{ color: '#fff' }}
+          onPress={() => navigation.navigate('PlanInfo')}
+        >
+          Создать новый план
+        </Button>
 
-      <TouchableOpacity onPress={() => navigation.navigate('Мой план')} >
-      <Card style={styles.taskCard}>
-        <View style={styles.container}>
-          <Text style={styles.text}>
-            {`Задачи выполнены: ${completedTasksLength} из ${todayTasks?.length || 0}`}
-          </Text>
-          <ProgressBar 
-            progress={completedTasksLength / todayTasks?.length || 0} 
-            color="#c20020" 
-            style={styles.progressBar} 
+        {userOriginalPlans && (
+          <Card.Title
+            style={{ paddingLeft: 3 }}
+            titleStyle={{ fontSize: 20 }}
+            title="Ваши созданные планы:"
           />
-          {/* Разделитель */}
-          <View style={styles.separator} />
-        </View>
-        <Card.Title
-          style={{ paddingLeft: 10 }}
-          titleStyle={{ fontSize: 20 }}
-          title="Активные задачи на сегодня:"
-        />
-
-        <TodayTasks 
-          data={todayTasks
-            ?.sort((a, b) => {
-              if (a.status === "done" && b.status !== "done") {
-                return 1;
-              } else if (a.status !== "done" && b.status === "done") {
-                return -1;
-              } else {
-                return 0;
-              }
-            })
-            .slice(0, 5)}
-        />
-      </Card>
-
-      </TouchableOpacity>
-
-      <Button
-        style={{
-          marginBottom: 10,
-          borderColor: '#76182a',
-          backgroundColor: '#76182a',
-          borderWidth: 1,
-        }}
-        labelStyle={{ color: '#fff' }}
-        onPress={() => navigation.navigate('PlanCreationScreen')}
-      >
-        Создать новый план
-      </Button>
-
-
-      {userOriginalPlans && <Card.Title
-          style={{ paddingLeft: 3 }}
-          titleStyle={{ fontSize: 20 }}
-          title="Ваши созданные планы:"
-        />}
-    </>
-  );
+        )}
+      </>
+    );
+  };
 
   return (
     <View style={styles.container}>
       <MyOriginalPlans
         plans={userOriginalPlans}
         navigation={navigation}
-        ListHeaderComponent={renderHeader} // Передаем шапку как свойство
+        ListHeaderComponent={renderHeader}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
     </View>
@@ -168,28 +185,11 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   userName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  userStatus: {
-    fontSize: 14,
-    color: 'gray',
-  },
-  settingsButton: {
-    padding: 5,
-  },
-  userName: {
     fontSize: 20,
     fontWeight: 'bold',
   },
-  userStatus: {
-    fontSize: 14,
-  },
-  logoutButton: {
-    padding: 8,
-  },
-  logoutText: {
-    fontWeight: 'bold',
+  settingsButton: {
+    padding: 5,
   },
   text: {
     fontSize: 16,
@@ -205,6 +205,12 @@ const styles = StyleSheet.create({
   separator: {
     marginTop: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#ccc', // Светло-серый цвет
+    borderBottomColor: '#ccc',
+  },
+  noTasksText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginVertical: 20,
+    color: '#555',
   },
 });

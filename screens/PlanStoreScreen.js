@@ -130,6 +130,7 @@ const PlanStoreScreen = ({ route, navigation }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      navigation.navigate('Мой план')
       setIsModalVisible(false);
       // Возможно, стоит обновить какие-то данные или уйти на другой экран
     } catch (err) {
@@ -140,7 +141,6 @@ const PlanStoreScreen = ({ route, navigation }) => {
         setError(err.message || 'Something went wrong');
       }
     } finally {
-      navigation.navigate('Мой план')
       setLoading(false);
     }
   };

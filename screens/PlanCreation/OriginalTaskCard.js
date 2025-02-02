@@ -24,7 +24,6 @@ const TaskCard = ({ task }) => {
     return String(time); // На случай, если это число или другой формат
   };
 
-  console.log('task123', task)
   return (
     <View style={styles.card}>
       {/* Изображение сбоку */}

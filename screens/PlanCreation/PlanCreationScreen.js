@@ -24,6 +24,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 const { width } = Dimensions.get('window');
 
+// Теги для плана (их можно использовать и для выбора плана)
 const availableTags = [
   { label: 'Фитнес', color: '#FFE4E6' },
   { label: 'Питание', color: '#FFF5E6' },
@@ -37,7 +38,138 @@ const availableTags = [
   { label: 'Социальная активность', color: '#FBE8FF' },
 ];
 
-const PlanCreationScreen = ({navigation}) => {
+// Маппинг: для каждого тега плана доступны определённые теги для задач
+const planTagToTaskTags = {
+  'Фитнес': [
+    'Кардио',
+    'Силовая тренировка',
+    'Растяжка',
+    'Йога',
+    'Разминка',
+    'Остывание',
+    'Функциональный тренинг',
+    'Прогулка',
+    'Плавание',
+    'Бег',
+    'Велотренировка',
+  ],
+  'Питание': [
+    'Завтрак',
+    'Обед',
+    'Ужин',
+    'Перекус',
+    'Подсчет калорий',
+    'Приём витаминов',
+    'Планирование меню',
+    'Готовка',
+    'Вода (норма)',
+    'Детокс',
+  ],
+  'Работа': [
+    'Совещание',
+    'Звонки',
+    'Ответы на письма',
+    'Кодинг',
+    'Дизайн',
+    'Написание статей',
+    'Подготовка презентации',
+    'Брейншторминг',
+    'Анализ данных',
+    'Административные задачи',
+  ],
+  'Отдых': [
+    'Медитация',
+    'Сон',
+    'Короткий сон (power nap)',
+    'Чтение книги',
+    'Прогулка',
+    'Музыка',
+    'Наблюдение за природой',
+    'Творчество (рисование, письмо)',
+    'Спа-процедуры',
+    'Дыхательные упражнения',
+  ],
+  'Путешествия': [
+    'Бронирование отеля',
+    'Покупка билетов',
+    'Сбор чемодана',
+    'Исследование достопримечательностей',
+    'Фотосессия',
+    'Посещение кафе',
+    'Маршрут дня',
+    'Транспортные пересадки',
+    'Покупка сувениров',
+    'Экскурсия',
+  ],
+  'Саморазвитие': [
+    'Чтение книги',
+    'Изучение языка',
+    'Онлайн-курс',
+    'Практика ораторского искусства',
+    'Ведение дневника',
+    'Планирование недели',
+    'Разбор полетов (рефлексия)',
+    'Просмотр лекции',
+    'Изучение нового навыка',
+    'Написание заметок',
+  ],
+  'Семья': [
+    'Завтрак с семьей',
+    'Время с детьми',
+    'Созвон с родителями',
+    'Совместный ужин',
+    'Семейная прогулка',
+    'Настольные игры',
+    'Планирование семейных мероприятий',
+    'Фотосессия',
+    'Разговор по душам',
+    'Совместная уборка',
+  ],
+  'Быт': [
+    'Уборка',
+    'Готовка',
+    'Покупка продуктов',
+    'Оплата счетов',
+    'Организация пространства',
+    'Стирка',
+    'Ремонт',
+    'Полив растений',
+    'Планирование покупок',
+    'Перестановка мебели',
+  ],
+  'Здоровье': [
+    'Визит к врачу',
+    'Принятие витаминов',
+    'Упражнения для спины',
+    'Медитация',
+    'Отказ от вредных привычек',
+    'Сон 7-8 часов',
+    'Лечебная физкультура',
+    'Питьевой режим',
+    'Дневник самочувствия',
+    'Контроль веса',
+  ],
+  'Социальная активность': [
+    'Встреча с друзьями',
+    'Посещение мероприятия',
+    'Волонтерство',
+    'Созвон с другом',
+    'Социальные сети',
+    'Новый контакт',
+    'Участие в митинге',
+    'Помощь близким',
+    'Нетворкинг',
+    'Обсуждение идей',
+  ],
+};
+
+// Дефолтный набор тегов для задач, если тег плана не выбран
+const defaultTaskTags = [
+  { label: 'Общее', color: '#B0BEC5' },
+  { label: 'Разное', color: '#B0BEC5' },
+];
+
+const PlanCreationScreen = ({ navigation }) => {
   const swiper = useRef();
   const bottomSheetRef = useRef(null);
   const [isPlanCreationButtonDisabled, setIsPlanCreationButtonDisabled] = useState(false);
@@ -47,17 +179,18 @@ const PlanCreationScreen = ({navigation}) => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [isCreationButtonDisabled, setIsCreationButtonDisabled] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
-  const [days, setDays] = useState([[{"dayIndex": 0, "label": "1"}]]);
+  const [days, setDays] = useState([[{ dayIndex: 0, label: '1' }]]);
   const [allTasksForPlan, setAllTasksForPlan] = useState([]); // Все задачи плана
   const [showTimeTaskFields, setShowTimeTaskFields] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState('date');
   const [pickerField, setPickerField] = useState(null);
 
+  // Изменяем состояние плана – теперь tag (один) вместо tags (массива)
   const [newPlan, setNewPlan] = useState({
     title: '',
     description: '',
-    tags: [],
+    tag: '', // выбранный тег плана (может быть пустым)
     tasks: [],
   });
 
@@ -101,7 +234,7 @@ const PlanCreationScreen = ({navigation}) => {
         <OriginalTaskCard task={item} />
         <TouchableOpacity
           style={styles.deleteButton}
-          onPress={() => handleDeleteTask(item)} // <<<<<
+          onPress={() => handleDeleteTask(item)}
         >
           <Text style={styles.deleteButtonText}>X</Text>
         </TouchableOpacity>
@@ -121,12 +254,12 @@ const PlanCreationScreen = ({navigation}) => {
     const lastWeek = days[days.length - 1];
     const lastDayIndex = lastWeek[lastWeek.length - 1].dayIndex;
     if (lastWeek.length < 7) {
-      const newDay = { dayIndex: lastDayIndex + 1, label: lastDayIndex + 2 };
+      const newDay = { dayIndex: lastDayIndex + 1, label: String(lastDayIndex + 2) };
       const updatedDays = [...days];
       updatedDays[updatedDays.length - 1] = [...lastWeek, newDay];
       setDays(updatedDays);
     } else {
-      const newDay = { dayIndex: lastDayIndex + 1, label: lastDayIndex + 2 };
+      const newDay = { dayIndex: lastDayIndex + 1, label: String(lastDayIndex + 2) };
       setDays([...days, [newDay]]);
     }
   };
@@ -174,7 +307,8 @@ const PlanCreationScreen = ({navigation}) => {
       const formData = new FormData();
       formData.append('title', newPlan.title);
       formData.append('description', newPlan.description);
-      formData.append('tags', JSON.stringify(newPlan.tags));
+      // Отправляем выбранный тег плана (если он есть)
+      formData.append('tag', newPlan.tag);
 
       allTasksForPlan.forEach((task, index) => {
         formData.append(`tasks[${index}][title]`, task.title);
@@ -256,7 +390,7 @@ const PlanCreationScreen = ({navigation}) => {
   const handlePickerChange = (event, selectedValue) => {
     if (event.type === 'set' && selectedValue) {
       if (pickerMode === 'date') {
-        // Здесь логика, если хотите дату, а не время
+        // Здесь логика, если нужна дата
       } else {
         setNewTask((prev) => ({
           ...prev,
@@ -278,6 +412,17 @@ const PlanCreationScreen = ({navigation}) => {
       tag: prevTask.tag === tagLabel ? '' : tagLabel
     }));
   };
+
+  // Вычисляем список тегов для задач:
+  // Если выбран тег плана, берем его набор из planTagToTaskTags и добавляем цвет (тот же, что у выбранного тега плана)
+  // Иначе – используем дефолтные теги
+  const taskTagsData = newPlan.tag
+  ? planTagToTaskTags[newPlan.tag].map((tag) => ({
+      label: tag,
+      // Цвет будем брать тот же, что и у выбранного тега плана
+      color: availableTags.find((t) => t.label === newPlan.tag)?.color || '#ddd',
+    }))
+  : availableTags;
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -305,6 +450,36 @@ const PlanCreationScreen = ({navigation}) => {
               value={newPlan.description}
               maxLength={250}
               onChangeText={(desc) => handlePlanInputChange('description', desc)}
+            />
+          </View>
+
+          {/* Новая секция для выбора тега плана */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Тег плана</Text>
+            <FlatList
+              data={availableTags}
+              keyExtractor={(item) => item.label}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.tag,
+                    { backgroundColor: item.color },
+                    newPlan.tag === item.label && styles.selectedTag,
+                  ]}
+                  onPress={() => handlePlanInputChange('tag', item.label)}
+                >
+                  <Text
+                    style={[
+                      styles.tagText,
+                      newPlan.tag === item.label && styles.selectedTagText,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              )}
             />
           </View>
         </View>
@@ -447,11 +622,13 @@ const PlanCreationScreen = ({navigation}) => {
             />
           </View>
 
-          {/* Теги */}
+          {/* Секция выбора тегов для задачи.
+              Если тег плана выбран – показываем соответствующий набор,
+              иначе – дефолтные теги */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Теги</Text>
+            <Text style={styles.label}>Теги задачи</Text>
             <FlatList
-              data={availableTags}
+              data={taskTagsData}
               keyExtractor={(item) => item.label}
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -629,12 +806,6 @@ const styles = StyleSheet.create({
     padding: 16,
     width: '90%'
   },
-  header: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
   title: {
     fontSize: 32,
     fontWeight: '700',
@@ -727,7 +898,7 @@ const styles = StyleSheet.create({
     flexBasis: 0,
   },
   btnDisabled: {
-    backgroundColor: '#B0BEC5', // Светло-серый цвет для неактивной кнопки
+    backgroundColor: '#B0BEC5',
   },
   /** Button */
   btn: {

@@ -15,6 +15,15 @@ const availableTags = [
 ];
 
 const TaskCard = ({ task }) => {
+  const formatTime = (time) => {
+    if (!time) return ''; // Проверяем, что значение не пустое
+    if (typeof time === 'string') return time; // Если уже строка, просто возвращаем
+    if (time instanceof Date) {
+      return time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); // Форматируем без секунд
+    }
+    return String(time); // На случай, если это число или другой формат
+  };
+
   return (
     <View style={styles.card}>
       {/* Изображение сбоку */}
@@ -39,10 +48,10 @@ const TaskCard = ({ task }) => {
           <Text style={styles.value}>{formatTime(task.startTime)} - {formatTime(task.endTime)}</Text>
         </View>}
         {task.isMeal && <View style={styles.    nutrientsContainer}>
-            <Text style={[styles.nutrientText, { color: '#5CB85C' }]}>Б: {task.protein || 0}</Text>
-            <Text style={[styles.nutrientText, { color: '#F0AD4E' }]}>Ж: {task.fats || 0}</Text>
-            <Text style={[styles.nutrientText, { color: '#5BC0DE' }]}>У: {task.carbs || 0}</Text>
-            <Text style={[styles.nutrientText, { color: '#D9534F' }]}>Ккал: {task.calories || 0}</Text>
+            <Text style={[styles.nutrientText, { color: '#5CB85C' }]}>Б: {Math.round(task.protein) || 0}</Text>
+            <Text style={[styles.nutrientText, { color: '#F0AD4E' }]}>Ж: {Math.round(task.fats) || 0}</Text>
+            <Text style={[styles.nutrientText, { color: '#5BC0DE' }]}>У: {Math.round(task.carbs) || 0}</Text>
+            <Text style={[styles.nutrientText, { color: '#D9534F' }]}>Ккал: {Math.round(task.calories) || 0}</Text>
           </View>}
         {task.isMandatory && <Text style={styles.mandatory}>Обязательная задача</Text>}
       </View>

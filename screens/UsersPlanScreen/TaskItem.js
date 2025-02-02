@@ -42,12 +42,23 @@ const TaskItem = memo(({ item, drag, isActive, isToday, onStatusChange, isChecke
             {item.startTime} - {item.endTime}
           </Text>}
 
-          {item.isMeal && <View style={styles.nutrientsContainer}>
-            <Text style={[styles.nutrientText, { color: '#5CB85C' }]}>Б: {item.protein || 0}</Text>
-            <Text style={[styles.nutrientText, { color: '#F0AD4E' }]}>Ж: {item.fats || 0}</Text>
-            <Text style={[styles.nutrientText, { color: '#5BC0DE' }]}>У: {item.carbs || 0}</Text>
-            <Text style={[styles.nutrientText, { color: '#D9534F' }]}>Ккал: {item.calories || 0}</Text>
-          </View>}
+          {item.isMeal && (
+            <View style={styles.nutrientsContainer}>
+              <Text style={[styles.nutrientText, { color: '#5CB85C' }]}>
+                Б: {Math.round(item.protein || 0)}
+              </Text>
+              <Text style={[styles.nutrientText, { color: '#F0AD4E' }]}>
+                Ж: {Math.round(item.fats || 0)}
+              </Text>
+              <Text style={[styles.nutrientText, { color: '#5BC0DE' }]}>
+                У: {Math.round(item.carbs || 0)}
+              </Text>
+              <Text style={[styles.nutrientText, { color: '#D9534F' }]}>
+                Ккал: {Math.round(item.calories || 0)}
+              </Text>
+            </View>
+          )}
+
         </View>
         <View style={styles.radioButtonContainer}>
           <RadioButton

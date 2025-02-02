@@ -9,6 +9,8 @@ import UsersPlanScreen from './screens/UsersPlanScreen/UsersPlanScreen';
 import OriginalPlansStoreScreen from './screens/OriginalPlansStoreScreen';
 import PlanStoreScreen from './screens/PlanStoreScreen';
 import PlanCreationScreen from './screens/PlanCreation/PlanCreationScreen';
+import PlanInfoScreen from './screens/PlanCreation/PlanInfoScreen';
+import TaskCreationScreen from './screens/PlanCreation/TaskCreationScreen';
 import { LocaleConfig } from 'react-native-calendars';
 import Icon from 'react-native-vector-icons/Ionicons';
 
@@ -97,6 +99,8 @@ export default function App() {
         <Stack.Screen name="Страница плана" component={PlanStoreScreen} />
         <Stack.Screen name="Поиск" component={MainTabs} options={{ headerShown: false }} />
         <Stack.Screen name="PlanCreationScreen" component={PlanCreationScreen} />
+        <Stack.Screen name="PlanInfo" component={PlanInfoScreen} options={{ title: 'Создание плана' }} />
+        <Stack.Screen name="TaskCreation" component={TaskCreationScreen} options={{ title: 'Создание задач' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
