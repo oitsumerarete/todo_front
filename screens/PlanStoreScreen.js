@@ -30,6 +30,7 @@ const PlanStoreScreen = ({ route, navigation }) => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState([]);
+  console.log(currentDayTasks)
   
   const [planTitle, setPlanTitle] = useState('');
   const [planLikesCount, setPlanLikesCount] = useState(0);

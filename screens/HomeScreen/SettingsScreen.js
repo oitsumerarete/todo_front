@@ -15,6 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import API_URL from '../../config';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 const privacyPolicyText = `
 Политика конфиденциальности
@@ -224,31 +225,38 @@ const SettingsScreen = () => {
       Alert.alert('Ошибка', 'Такой никнейм уже занят. Введите другой никнейм.');
       return;
     }
+  
     setIsSaving(true);
     try {
       const token = await getBearerToken();
-
+  
       const formData = new FormData();
       formData.append('username', name);
       formData.append('email', email);
-
+  
       if (selectedImage) {
-        const filename = selectedImage.split('/').pop();
-        const match = /\.(\w+)$/.exec(filename);
-        const fileType = match ? `image/${match[1]}` : 'image';
+        // Сжатие изображения перед отправкой
+        const manipulatedImage = await ImageManipulator.manipulateAsync(
+          selectedImage,
+          [{ resize: { width: 800 } }], // Уменьшение до 800 пикселей в ширину (авто высота)
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG } // Сжатие и конвертация в JPEG
+        );
+  
+        const filename = manipulatedImage.uri.split('/').pop();
         formData.append('avatar', {
-          uri: selectedImage,
+          uri: manipulatedImage.uri,
           name: filename,
-          type: fileType,
+          type: 'image/jpeg',
         });
       }
-
+  
       const response = await axios.put(`${API_URL}/user/update`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${token}`,
         },
       });
+  
       console.log('Данные обновлены', response.data);
       Alert.alert('Успех', 'Данные успешно сохранены');
     } catch (error) {

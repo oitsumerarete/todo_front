@@ -412,8 +412,15 @@ const PlanScreen = () => {
         const filename = newTask.image.split('/').pop();
         const match = /\.(\w+)$/.exec(filename);
         const fileType = match ? `image/${match[1]}` : 'image';
+
+        const manipulatedImage = await ImageManipulator.manipulateAsync(
+          newTask.image,
+          [{ resize: { width: 800 } }], // Уменьшение до 800 пикселей в ширину (авто высота)
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG } // Сжатие и конвертация в JPEG
+        );
+
         formData.append('image', {
-          uri: newTask.image,
+          uri: manipulatedImage.uri,
           name: filename,
           type: fileType,
         });

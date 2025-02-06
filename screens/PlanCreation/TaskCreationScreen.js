@@ -21,7 +21,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import OriginalTaskCard from './OriginalTaskCard'; // Ваш компонент для отображения задачи
 import API_URL from '../../config'; // Ваш API_URL
-
+import * as ImageManipulator from 'expo-image-manipulator';
 const { width } = Dimensions.get('window');
 
 // Список доступных тегов для плана (для цвета и, если план не выбран, в качестве дефолтного набора)
@@ -302,9 +302,12 @@ const TaskCreationScreen = ({ route, navigation }) => {
 
   const handlePickerChange = (event, selectedValue) => {
     if (event.type === 'set' && selectedValue) {
+      // Преобразуем в строку формата HH:mm:ss
+      const formattedTime = format(selectedValue, 'HH:mm:ss');
+  
       setNewTask((prev) => ({
         ...prev,
-        [pickerField]: selectedValue,
+        [pickerField]: formattedTime, // Храним как строку
       }));
     }
     setShowPicker(false);
@@ -333,43 +336,60 @@ const TaskCreationScreen = ({ route, navigation }) => {
   const handlePlanToServer = async () => {
     try {
       const formData = new FormData();
+  
       // Добавляем данные плана
       formData.append('title', plan.title);
       formData.append('description', plan.description);
       formData.append('tag', plan.tag);
+  
       if (plan.image) {
         const filename = plan.image.split('/').pop();
         const match = /\.(\w+)$/.exec(filename);
         const fileType = match ? `image/${match[1]}` : 'image';
+  
+        const manipulatedImage = await ImageManipulator.manipulateAsync(
+          plan.image,
+          [{ resize: { width: 800 } }], // Уменьшение до 800 пикселей в ширину (авто высота)
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG } // Сжатие и конвертация в JPEG
+        );
+  
         formData.append('image', {
-          uri: plan.image,
+          uri: manipulatedImage.uri,
           name: filename,
           type: fileType,
         });
       }
+  
       // Добавляем задачи
-      allTasksForPlan.forEach((task, index) => {
+      for (const [index, task] of allTasksForPlan.entries()) {
         formData.append(`tasks[${index}][title]`, task.title);
         formData.append(`tasks[${index}][description]`, task.description);
         formData.append(`tasks[${index}][dayNumber]`, task.dayNumber + 1);
         formData.append(`tasks[${index}][tag]`, task.tag);
-        formData.append(`tasks[${index}][startTime]`, task.startTime?.toISOString() || null);
-        formData.append(`tasks[${index}][endTime]`, task.endTime?.toISOString() || null);
+        formData.append(`tasks[${index}][startTime]`, task.startTime || null);
+        formData.append(`tasks[${index}][endTime]`, task.endTime || null);
         formData.append(`tasks[${index}][isMandatory]`, task.isMandatory);
         formData.append(`tasks[${index}][isMeal]`, task.isMeal);
-
+  
         if (task.image) {
           const filename = task.image.split('/').pop();
           const match = /\.(\w+)$/.exec(filename);
           const fileType = match ? `image/${match[1]}` : 'image';
+  
+          const manipulatedImage = await ImageManipulator.manipulateAsync(
+            task.image,
+            [{ resize: { width: 800 } }],
+            { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+          );
+  
           formData.append(`tasks[${index}][image]`, {
-            uri: task.image,
+            uri: manipulatedImage.uri,
             name: filename,
             type: fileType,
           });
         }
-      });
-
+      }
+  
       const token = await getBearerToken();
       const response = await axios.post(`${API_URL}/original/plans`, formData, {
         headers: {
@@ -377,7 +397,7 @@ const TaskCreationScreen = ({ route, navigation }) => {
           Authorization: `Bearer ${token}`,
         },
       });
-
+  
       if (response.data) {
         navigation.navigate('Страница плана', { planId: response.data });
       } else {
@@ -387,6 +407,7 @@ const TaskCreationScreen = ({ route, navigation }) => {
       console.error('Error saving plan:', error);
     }
   };
+  
 
   useEffect(() => {
     setIsCreationButtonDisabled(!newTask.title.trim());
