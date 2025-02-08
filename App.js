@@ -13,6 +13,8 @@ import PlanInfoScreen from './screens/PlanCreation/PlanInfoScreen';
 import TaskCreationScreen from './screens/PlanCreation/TaskCreationScreen';
 import { LocaleConfig } from 'react-native-calendars';
 import Icon from 'react-native-vector-icons/Ionicons';
+import FlashMessage from 'react-native-flash-message';
+
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -44,6 +46,7 @@ const InvertedTheme = {
 
 function MainTabs() {
   return (
+    <>
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: '#76182a',
@@ -81,6 +84,12 @@ function MainTabs() {
         }}
       />
     </Tab.Navigator>
+    <FlashMessage position="top" /> 
+      {/* 
+         position можно менять: "top" / "bottom", 
+         также доступны стили для кастомизации.
+      */}
+  </>
   );
 }
 

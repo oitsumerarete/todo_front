@@ -2,26 +2,35 @@ import React from "react";
 import { View, Text, Image, StyleSheet } from "react-native";
 
 const availableTags = [
-  { label: 'Фитнес', color: '#FFE4E6' }, // приглушённый розовый
-  { label: 'Питание', color: '#FFF5E6' }, // приглушённый оранжевый
-  { label: 'Работа', color: '#FFFFE6' }, // приглушённый жёлтый
-  { label: 'Отдых', color: '#E6FFEB' }, // приглушённый зелёный
-  { label: 'Путешествия', color: '#E6F7FF' }, // приглушённый голубой
-  { label: 'Саморазвитие', color: '#F3E6FF' }, // приглушённый фиолетовый
-  { label: 'Семья', color: '#FFEDED' }, // приглушённый коралловый
-  { label: 'Быт', color: '#E8FFE8' }, // приглушённый лаймовый
-  { label: 'Здоровье', color: '#E8F3FF' }, // приглушённый синий
-  { label: 'Социальная активность', color: '#FBE8FF' }, // приглушённый сиреневый
+  { label: 'Фитнес', color: '#FFE4E6' },
+  { label: 'Питание', color: '#FFF5E6' },
+  { label: 'Работа', color: '#FFFFE6' },
+  { label: 'Отдых', color: '#E6FFEB' },
+  { label: 'Путешествия', color: '#E6F7FF' },
+  { label: 'Саморазвитие', color: '#F3E6FF' },
+  { label: 'Семья', color: '#FFEDED' },
+  { label: 'Быт', color: '#E8FFE8' },
+  { label: 'Здоровье', color: '#E8F3FF' },
+  { label: 'Социальная активность', color: '#FBE8FF' },
 ];
 
 const TaskCard = ({ task }) => {
   const formatTime = (time) => {
-    if (!time) return ''; // Проверяем, что значение не пустое
-    if (typeof time === 'string') return time; // Если уже строка, просто возвращаем
+    if (!time) return '';
+    if (typeof time === 'string') return time.slice(0, 5); // Обрезаем секунды, если это строка "HH:mm:ss"
     if (time instanceof Date) {
-      return time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); // Форматируем без секунд
+        return time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: undefined });
     }
-    return String(time); // На случай, если это число или другой формат
+    return String(time);
+  };
+
+  // Функция для получения первых n слов из строки
+  const getFirstNWords = (text, n) => {
+    if (!text) return '';
+    const words = text.split(' ');
+    return words.length > n
+      ? words.slice(0, n).join(' ') + '...'
+      : text;
   };
 
   return (
@@ -33,27 +42,49 @@ const TaskCard = ({ task }) => {
       {/* Контейнер для текста */}
       <View style={styles.textContainer}>
         <View style={styles.header}>
-          <Text style={styles.title}>{task.title}</Text>
-          <Text
-            style={[
-              styles.status,
-              { backgroundColor: availableTags.find(tag => tag.label === task.tag)?.color || 'transparent', color: '#660', fontWeight: '600', }
-            ]}
-          >
-            {task.tag}
+          {/* Ограничиваем заголовок одной строкой */}
+          <Text style={styles.title}>
+            {task.title}
           </Text>
         </View>
-        {task.startTime && task.endTime && <View style={styles.infoRow}>
-          <Text style={styles.label}>Время:</Text>
-          <Text style={styles.value}>{formatTime(task.startTime)} - {formatTime(task.endTime)}</Text>
-        </View>}
-        {task.isMeal && <View style={styles.    nutrientsContainer}>
-            <Text style={[styles.nutrientText, { color: '#5CB85C' }]}>Б: {Math.round(task.protein) || 0}</Text>
-            <Text style={[styles.nutrientText, { color: '#F0AD4E' }]}>Ж: {Math.round(task.fats) || 0}</Text>
-            <Text style={[styles.nutrientText, { color: '#5BC0DE' }]}>У: {Math.round(task.carbs) || 0}</Text>
-            <Text style={[styles.nutrientText, { color: '#D9534F' }]}>Ккал: {Math.round(task.calories) || 0}</Text>
-          </View>}
-        {task.isMandatory && <Text style={styles.mandatory}>Обязательная задача</Text>}
+        {/* Выводим описание, если оно есть */}
+        {task.description && (
+          <Text style={styles.description}>
+            {getFirstNWords(task.description, 6)}
+          </Text>
+        )}
+        {((task.startTime && task.endTime) || task.tag) && (
+            <View style={styles.timeTagContainer}>
+              {task.tag && (
+                <Text style={[styles.status]}>
+                  {task.tag}
+                </Text>
+              )}
+
+              {task.startTime && task.endTime && (
+                <Text style={[styles.timeBox, task.tag ? {
+                  marginLeft: 20} : null]}>
+                  {formatTime(task.startTime)} - {formatTime(task.endTime)}
+                </Text>
+              )}
+            </View>
+          )}
+        {task.isMeal && (
+          <View style={styles.nutrientsContainer}>
+            <Text style={[styles.nutrientText, { color: '#5CB85C' }]}>
+              Б: {Math.round(task.protein) || 0}
+            </Text>
+            <Text style={[styles.nutrientText, { color: '#F0AD4E' }]}>
+              Ж: {Math.round(task.fats) || 0}
+            </Text>
+            <Text style={[styles.nutrientText, { color: '#5BC0DE' }]}>
+              У: {Math.round(task.carbs) || 0}
+            </Text>
+            <Text style={[styles.nutrientText, { color: '#D9534F' }]}>
+              Ккал: {Math.round(task.calories) || 0}
+            </Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -70,14 +101,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-    flexDirection: "row", // Горизонтальное размещение
+    flexDirection: "row",
     alignItems: "center",
   },
   image: {
-    width: 70,
-    height: 70,
-    borderRadius: 10,
-    marginRight: 10, // Отступ между изображением и текстом
+    width: 90,
+    height: 90,
+    borderRadius: 8,
+    marginRight: 10,
   },
   textContainer: {
     flex: 1,
@@ -87,13 +118,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 4,
   },
   title: {
     fontSize: 16,
     fontWeight: "bold",
     color: "#333",
-    flex: 1, // Для переноса текста, если он длинный
+    flex: 1,
+    marginRight: 8, // Отступ между заголовком и тегом
   },
   status: {
     fontSize: 14,
@@ -101,14 +133,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 5,
-  },
-  pending: {
-    backgroundColor: "#ffebcc",
-    color: "#b35900",
-  },
-  completed: {
-    backgroundColor: "#dff0d8",
-    color: "#3c763d",
+    alignSelf: 'flex-start',
+    backgroundColor: "#FFE4E6",
+    color: '#660',
   },
   infoRow: {
     flexDirection: "row",
@@ -124,12 +151,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#333",
   },
-  mandatory: {
-    marginTop: 7,
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#c0392b",
-  },
   nutrientsContainer: {
     flexDirection: 'row',
     marginTop: 5,
@@ -138,6 +159,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: 'bold',
     marginRight: 10,
+  },
+  description: {
+    fontSize: 14,
+    color: "#777",
+    marginBottom: 4,
+  },
+  timeTagContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  timeBox: {
+    backgroundColor: '#E8F3FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 5,
+    fontSize: 14,
+    color: '#4d4d4d',
+    fontWeight: '600',
   },
 });
 

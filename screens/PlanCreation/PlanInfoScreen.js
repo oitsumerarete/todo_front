@@ -1,6 +1,6 @@
 // screens/PlanInfoScreen.js
 import React, { useState } from 'react';
-import { View, Text, TextInput, SafeAreaView, TouchableOpacity, FlatList, StyleSheet, Image } from 'react-native';
+import { View, Text, TextInput, SafeAreaView, TouchableOpacity, FlatList, StyleSheet, Keyboard, Image } from 'react-native';
 import { Button } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -72,6 +72,9 @@ const PlanInfoScreen = ({ navigation }) => {
           numberOfLines={4}
           value={newPlan.description}
           onChangeText={(text) => handlePlanInputChange('description', text)}
+          onSubmitEditing={() => Keyboard.dismiss()}
+          submitBehavior="blurAndSubmit"
+          returnKeyType="done"
         />
       </View>
 
@@ -112,7 +115,7 @@ const PlanInfoScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         {newPlan.image && (
-            <View style={{ marginTop: 16, alignItems: 'center' }}>
+            <View style={{ marginTop: 20, alignItems: 'center' }}>
               <Text style={styles.label}>Предпросмотр:</Text>
               <Image source={{ uri: newPlan.image }} style={{ width: 100, height: 100, borderRadius: 8 }} />
             </View>
@@ -134,7 +137,6 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   fieldContainer: {
-    marginBottom: 16,
     padding: 16,
   },
   label: {

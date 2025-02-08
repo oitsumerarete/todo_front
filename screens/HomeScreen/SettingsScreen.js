@@ -283,7 +283,6 @@ const SettingsScreen = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      console.log(response);
       Alert.alert('Спасибо', 'Ваш отзыв отправлен!');
       setFeedback('');
     } catch (error) {

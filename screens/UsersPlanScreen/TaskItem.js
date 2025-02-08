@@ -1,12 +1,26 @@
 import React, { memo } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { RadioButton } from 'react-native-paper';
-import { MaterialIcons } from '@expo/vector-icons'; // Используем библиотеку иконок
+import { MaterialIcons } from '@expo/vector-icons';
 
-const TaskItem = memo(({ item, drag, isActive, isToday, onStatusChange, isChecked, isTodayDayComleted }) => {
+const TaskItem = memo(({ item, drag, onPress, isActive, isToday, onStatusChange, isChecked, isTodayDayComleted }) => {
+  const getFirstNWords = (text, n) => {
+    if (!text) return '';
+    const words = text.split(' ');
+    return words.length > n ? words.slice(0, n).join(' ') + '...' : text;
+  };
+
+  const formatTime = (time) => {
+    if (!time) return '';
+    if (typeof time === 'string') return time.slice(0, 5); // Получаем формат "HH:mm"
+    if (time instanceof Date) {
+      return time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return String(time);
+  };
+
   const handleChangeTaskStatus = () => {
     if (!isToday || isTodayDayComleted) return;
-
     const newStatus = isChecked ? 'pending' : 'done';
     onStatusChange(item.taskId, item.isMandatory, newStatus, item.taskDate);
   };
@@ -18,30 +32,48 @@ const TaskItem = memo(({ item, drag, isActive, isToday, onStatusChange, isChecke
         { backgroundColor: isActive ? '#e0e0e0' : '#ffffff' },
         (!isToday || isTodayDayComleted) && styles.disabledTask,
       ]}
+      onPress={onPress}
       onLongPress={drag}
       delayLongPress={150}
     >
       <View style={styles.taskContent}>
-        <Image
+        {item.mainImageLink && <Image
           style={styles.taskImage}
           source={{ uri: item.mainImageLink }}
-        />
+        />}
         <View style={styles.textContainer}>
           <View style={styles.titleContainer}>
             <Text style={styles.taskTitle}>{item.title}</Text>
             {item.isMandatory && (
               <MaterialIcons
-                name="error-outline" // Иконка для обязательной задачи
+                name="error-outline"
                 size={18}
                 color="#76182a"
                 style={styles.mandatoryIcon}
               />
             )}
           </View>
-          {item.startTime && item.endTime && <Text style={styles.taskTime}>
-            {item.startTime} - {item.endTime}
-          </Text>}
+          {item.description && (
+            <Text style={styles.description}>
+              {getFirstNWords(item.description, 6)}
+            </Text>
+          )}
+          {((item.startTime && item.endTime) || item.tag) && (
+            <View style={styles.timeTagContainer}>
+              {item.tag && (
+                <Text style={[styles.status]}>
+                  {item.tag}
+                </Text>
+              )}
 
+              {item.startTime && item.endTime && (
+                <Text style={[styles.timeBox, item.tag ? {
+                  marginLeft: 20} : null]}>
+                  {formatTime(item.startTime)} - {formatTime(item.endTime)}
+                </Text>
+              )}
+            </View>
+          )}
           {item.isMeal && (
             <View style={styles.nutrientsContainer}>
               <Text style={[styles.nutrientText, { color: '#5CB85C' }]}>
@@ -58,7 +90,6 @@ const TaskItem = memo(({ item, drag, isActive, isToday, onStatusChange, isChecke
               </Text>
             </View>
           )}
-
         </View>
         <View style={styles.radioButtonContainer}>
           <RadioButton
@@ -103,33 +134,33 @@ const styles = StyleSheet.create({
   textContainer: {
     paddingLeft: 15,
     flex: 1,
+    marginRight: 10,
   },
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
   },
   taskTitle: {
     fontSize: 16,
     color: '#000',
     fontWeight: '500',
+    flexShrink: 1,
+    flexWrap: 'wrap',
   },
   mandatoryIcon: {
     marginLeft: 5,
     marginTop: 2,
   },
-  taskDescription: {
+  description: {
     fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-  },
-  taskTime: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 4,
+    color: "#777",
+    marginTop: 5,
+    marginBottom: 4,
   },
   taskImage: {
-    width: 60,
-    height: 60,
+    width: 100,
+    height: 100,
     borderRadius: 8,
     marginLeft: 5,
   },
@@ -141,5 +172,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: 'bold',
     marginRight: 10,
+  },
+  status: {
+    fontSize: 14,
+    fontWeight: "600",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 5,
+    alignSelf: 'flex-start',
+    backgroundColor: "#FFE4E6",
+    color: '#660',
+  },
+  timeTagContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  timeBox: {
+    backgroundColor: '#E8F3FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 5,
+    fontSize: 14,
+    color: '#4d4d4d',
+    fontWeight: '600',
   },
 });

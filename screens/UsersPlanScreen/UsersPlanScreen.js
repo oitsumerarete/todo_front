@@ -31,6 +31,9 @@ import API_URL from '../../config';
 import * as ImagePicker from 'expo-image-picker';
 // Импортируем хук для навигации
 import { useNavigation } from '@react-navigation/native';
+import { format } from 'date-fns';
+import { showMessage } from 'react-native-flash-message';
+import WeekCalendar from './WeekCalendar';
 
 // Определяем набор доступных тегов для плана и соответствующий маппинг для задач
 const availableTags = [
@@ -188,6 +191,7 @@ const PlanScreen = () => {
   };
 
   const todayDate = getFormattedDate(new Date());
+  const [isFullCalendarShown, setIsFullCalendarShown] = useState(false);
 
   // Основные состояния
   const [isLoading, setIsLoading] = useState(false);
@@ -206,14 +210,15 @@ const PlanScreen = () => {
     title: '',
     description: '',
     date: todayDate,
-    startTime: new Date(),
-    endTime: new Date(),
+    startTime: null,
+    endTime: null,
     isMandatory: false,
     isMeal: false,
     image: null,
     tag: '',
   });
-
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [taskModalVisible, setTaskModalVisible] = useState(false);
   const [taskSummaryByDate, setTaskSummaryByDate] = useState({});
   const [today, setToday] = useState(todayDate);
   const [isMealToday, setIsMealToday] = useState(false);
@@ -235,7 +240,10 @@ const PlanScreen = () => {
   });
 
   const bottomSheetRef = useRef(null);
-
+  const openTaskModal = (task) => {
+    setSelectedTask(task);
+    setTaskModalVisible(true);
+  };
   // Функция загрузки плана пользователя
   const fetchPlan = async () => {
     try {
@@ -329,18 +337,12 @@ const PlanScreen = () => {
 
   const handlePickerChange = (event, selectedValue) => {
     if (event.type === 'set' && selectedValue) {
-      if (pickerMode === 'date') {
-        const updatedValue = getFormattedDate(selectedValue);
-        setNewTask((prev) => ({
-          ...prev,
-          [pickerField]: updatedValue,
-        }));
-      } else {
-        setNewTask((prev) => ({
-          ...prev,
-          [pickerField]: selectedValue,
-        }));
-      }
+      const formattedTime = format(selectedValue, 'HH:mm');
+
+      setNewTask((prev) => ({
+        ...prev,
+        [pickerField]: formattedTime,
+      }));
     }
     setShowPicker(false);
   };
@@ -552,12 +554,14 @@ const PlanScreen = () => {
         isTodayDayComleted={isTodayDayCompleted}
         isToday={itemDateLocal === todayDate}
         isChecked={item.status === 'done'}
+        onPress={() => openTaskModal(item)}  // <-- Добавляем обработчик нажатия
         onStatusChange={(taskId, isMandatory, newStatus) =>
           onStatusChange(taskId, isMandatory, newStatus, itemDateLocal)
         }
       />
     );
   };
+  
 
   // Обработчик окончания перетаскивания списка
   const onDragEnd = ({ data }) => {
@@ -569,13 +573,17 @@ const PlanScreen = () => {
 
   // Расчет статистики для задач-приемов пищи
   const tasksForSelectedDate = tasksByDate[selectedDate] || [];
+
+  const sortedTasksForSelectedDate = [...tasksForSelectedDate].sort(
+    (a, b) => a.taskOrder - b.taskOrder
+  );
   useEffect(() => {
     let kcal = 0;
     let proteins = 0;
     let fats = 0;
     let carbs = 0;
 
-    tasksForSelectedDate
+    sortedTasksForSelectedDate
       .filter((task) => task.status === 'done' && task.isMeal)
       .forEach((task) => {
         if (task.calories && task.protein && task.fats && task.carbs) {
@@ -594,7 +602,7 @@ const PlanScreen = () => {
     fats = 0;
     carbs = 0;
 
-    tasksForSelectedDate.forEach((task) => {
+    sortedTasksForSelectedDate.forEach((task) => {
       if (task.calories && task.protein && task.fats && task.carbs && task.isMeal) {
         kcal += task.calories;
         proteins += task.protein;
@@ -634,7 +642,7 @@ const PlanScreen = () => {
 
   // Функции для модального окна (подтверждение завершения дня)
   const confirmDayCompletion = async () => {
-    if (!pendingTask) return; // Проверяем, есть ли задача для подтверждения
+    if (!pendingTask) return;
   
     const { taskId, date, newStatus, isLastTaskForDayToDoGoingToBeDone } = pendingTask;
   
@@ -650,7 +658,8 @@ const PlanScreen = () => {
         { status: newStatus, planId: plan.planId, lastTaskGoingToBeDone: isLastTaskForDayToDoGoingToBeDone, originalPlanId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
+  
+      // Локально обновляем состояние
       setTasksByDate((prevTasks) => {
         const updatedTasks = {
           ...prevTasks,
@@ -660,27 +669,34 @@ const PlanScreen = () => {
         };
         return updatedTasks;
       });
-
+  
       setTaskSummaryByDate((prevSummary) => {
         const updatedSummary = { ...prevSummary };
-    
         if (!updatedSummary[date]) {
-          updatedSummary[date] = { mandatoryNotDone: 0, totalTasks: 0 }; // Инициализация объекта, если его нет
+          updatedSummary[date] = { mandatoryNotDone: 0, totalTasks: 0 };
         }
-  
         if (newStatus === 'done') {
           updatedSummary[date].mandatoryNotDone -= 1;
         }
-  
         return updatedSummary;
       });
-
+  
+      // Отмечаем, что день завершён (в локальном состоянии)
       setIsTodayDayCompleted(true);
+  
+      // Показываем всплывающее уведомление
+      showMessage({
+        message: 'Поздравляем!',
+        description: 'Вы завершили день, ура!',
+        type: 'success', // или "info", "warning", "danger"
+        duration: 3000,  // время в мс, через которое сообщение пропадет
+      });
+  
     } catch (err) {
       console.error('Error updating task status:', err);
     }
   
-    // Скрываем модалку и очищаем состояние
+    // Скрываем модальное окно и сбрасываем pendingTask
     setModalVisible(false);
     setPendingTask(null);
   };
@@ -735,7 +751,21 @@ const PlanScreen = () => {
         </View>
       </View>
 
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity
+          onPress={() => setIsFullCalendarShown((prev) => !prev)}
+          style={styles.toggleIcon}
+        >
+          <MaterialIcons
+            name={isFullCalendarShown ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+            size={30}
+            color="#76182a"
+          />
+        </TouchableOpacity>
+      </View>
       {/* Календарь */}
+      {isFullCalendarShown ? (
+      // Полный календарь (месячный) – можно оставить как есть
       <Calendar
         current={selectedDate || todayDate}
         onDayPress={handleDayPress}
@@ -746,8 +776,17 @@ const PlanScreen = () => {
           arrowColor: '#00adf5',
         }}
       />
+    ) : (
+      // Компактный недельный календарь со свайпами
+      <WeekCalendar
+        current={selectedDate || todayDate}
+        onDayPress={handleDayPress}
+        markedDates={mergedMarkedDates}
+        selectedDate={selectedDate}
+      />
+    )}
 
-      {isLoading && (!tasksForSelectedDate || tasksForSelectedDate.length === 0) && (
+      {isLoading && (!sortedTasksForSelectedDate || sortedTasksForSelectedDate.length === 0) && (
         <View style={styles.loader}>
           <ActivityIndicator size="large" color="#76182a" />
         </View>
@@ -788,9 +827,9 @@ const PlanScreen = () => {
             </View>
           ) : null}
 
-          {tasksForSelectedDate && (
+          {sortedTasksForSelectedDate && (
             <DraggableFlatList
-              data={tasksForSelectedDate}
+              data={sortedTasksForSelectedDate}
               renderItem={renderItem}
               keyExtractor={(item) => item.taskId.toString()}
               onDragEnd={onDragEnd}
@@ -801,11 +840,11 @@ const PlanScreen = () => {
       )}
 
       {/* FAB для открытия нижнего листа */}
-      <FAB
+      {/* <FAB
         style={styles.fab}
         icon={() => <Icon name="plus" size={24} color="white" />}
         onPress={handleOpenBottomSheet}
-      />
+      /> */}
 
       {/* Нижний лист для создания задачи */}
       <BottomSheet
@@ -883,29 +922,23 @@ const PlanScreen = () => {
 
     {/* Время (если включено) */}
     {showTimeTaskFields && (
-      <View style={styles.bottomSheetTimeContainer}>
-        <View style={styles.bottomSheetTimeField}>
+      <View style={styles.timeContainer}>
+        <View style={styles.timeField}>
           <Text style={styles.label}>Начало</Text>
           <TouchableOpacity onPress={() => showDatePicker('startTime')}>
             <Text style={styles.dateText}>
               {newTask.startTime
-                ? newTask.startTime.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
+                ? newTask.startTime
                 : 'Выберите время'}
             </Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.bottomSheetTimeField}>
+        <View style={styles.timeField}>
           <Text style={styles.label}>Конец</Text>
           <TouchableOpacity onPress={() => showDatePicker('endTime')}>
             <Text style={styles.dateText}>
               {newTask.endTime
-                ? newTask.endTime.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
+                ? newTask.endTime
                 : 'Выберите время'}
             </Text>
           </TouchableOpacity>
@@ -981,6 +1014,49 @@ const PlanScreen = () => {
         </View>
       </Modal>
 
+      <Modal
+        visible={taskModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setTaskModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {/* Если у задачи есть картинка, показываем её */}
+            {!!selectedTask?.mainImageLink && (
+              <Image
+                source={{ uri: selectedTask.mainImageLink }}
+                style={styles.modalImage}
+              />
+            )}
+            <Text style={styles.modalTitle}>
+              {selectedTask?.title}
+            </Text>
+            <Text style={styles.modalDescription}>
+              {selectedTask?.description}
+            </Text>
+            {/* Дополнительные поля, если они есть */}
+            {selectedTask?.startTime && (
+              <Text style={styles.modalDetail}>
+                Начало: {selectedTask.startTime}
+              </Text>
+            )}
+            {selectedTask?.endTime && (
+              <Text style={styles.modalDetail}>
+                Конец: {selectedTask.endTime}
+              </Text>
+            )}
+            <TouchableOpacity
+              style={[styles.modalButton, styles.cancelButton]}
+              onPress={() => setTaskModalVisible(false)}
+            >
+              <Text style={styles.modalButtonText}>Закрыть</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+
       {/* DateTimePicker для выбора даты/времени */}
       {showPicker && (
         <DateTimePicker
@@ -1010,6 +1086,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 10,
+  },
+  toggleCalendarButton: {
+    alignSelf: 'center',
+    marginVertical: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#76182a',
+    borderRadius: 8,
+  },
+  toggleCalendarButtonText: {
+    color: '#fff',
+    fontSize: 14,
   },
   planDescription: { flex: 1 },
   planTitle: { fontSize: 20, fontWeight: 'bold' },
@@ -1064,7 +1152,9 @@ const styles = StyleSheet.create({
   },
   textArea: { height: 80, textAlignVertical: 'top' },
   dateText: { fontSize: 16, color: '#007bff', paddingVertical: 8 },
-  timeContainer: { flexDirection: 'row', justifyContent: 'space-between' },
+  timeContainer: { flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 16, },
   timeField: { flex: 1, marginRight: 8 },
   btn: {
     backgroundColor: '#76182a',
@@ -1076,7 +1166,14 @@ const styles = StyleSheet.create({
   btnDisabled: { backgroundColor: '#B0BEC5' },
 
   btnText: { color: '#fff', fontSize: 16 },
-  toggleContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  toggleContainer: {
+    marginTop: -15,
+    alignItems: 'center', // Центрируем содержимое по горизонтали
+    justifyContent: 'center',
+  },
+  toggleIcon: {
+    padding: 5, // Дополнительный отступ, если нужно
+  },
   switchContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   bottomSheetContainer: {
     paddingHorizontal: 16,
@@ -1141,4 +1238,53 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
   },
+  modalDetail: {
+    fontSize: 16,
+    color: '#555',
+    marginTop: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: '80%',
+    padding: 20,
+    backgroundColor: 'white',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalImage: {
+    width: 250,
+    height: 250,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  modalDescription: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  modalButton: {
+    backgroundColor: '#76182a',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  modalButtonText: {
+    color: 'white',
+    fontSize: 16,
+  },
+  cancelButton: {
+    backgroundColor: 'gray',
+  },
+  
 });

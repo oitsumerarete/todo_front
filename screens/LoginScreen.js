@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import API_URL from '../config';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -32,7 +33,7 @@ const LoginScreen = ({ navigation }) => {
       return; // Прерываем выполнение дальнейшего кода
     }
     try {
-      const response = await axios.post('http://localhost:3000/login', {
+      const response = await axios.post(`${API_URL}/login`, {
         email,
         password,
       });

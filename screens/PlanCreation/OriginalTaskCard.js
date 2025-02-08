@@ -16,42 +16,73 @@ const availableTags = [
 
 const TaskCard = ({ task }) => {
   const formatTime = (time) => {
-    if (!time) return ''; // Проверяем, что значение не пустое
-    if (typeof time === 'string') return time; // Если уже строка, просто возвращаем
+    if (!time) return '';
+    if (typeof time === 'string') return time.slice(0, 5); // Обрезаем секунды, если строка "HH:mm:ss"
     if (time instanceof Date) {
-      return time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); // Форматируем без секунд
+      return time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
-    return String(time); // На случай, если это число или другой формат
+    return String(time);
   };
+
+  const getFirstNWords = (text, n) => {
+    if (!text) return '';
+    const words = text.split(' ');
+    return words.length > n
+      ? words.slice(0, n).join(' ') + '...'
+      : text;
+  };
+
+  const tagData = availableTags.find(tag => tag.label === task.tag);
 
   return (
     <View style={styles.card}>
       {/* Изображение сбоку */}
       {task.image && (
-        <Image
-        source={{ uri: task.image }}
-        style={styles.image}
-      />
+        <Image source={{ uri: task.image }} style={styles.image} />
       )}
-      {/* Контейнер для текста */}
+      {/* Текстовый блок */}
       <View style={styles.textContainer}>
-        <View style={styles.header}>
+        <View>
           <Text style={styles.title}>{task.title}</Text>
-          <Text
-            style={[
-              styles.status,
-              { backgroundColor: availableTags.find(tag => tag.label === task.tag)?.color || 'transparent', color: '#660', fontWeight: '600', }
-            ]}
-          >
-            {task.tag}
+          {task.description && (
+          <Text style={styles.description}>
+            {getFirstNWords(task.description, 6)}
           </Text>
+          )}
+          {task.startTime && task.endTime && (
+            <View style={styles.infoRow}>
+              <Text style={styles.label}>Время:</Text>
+              <Text style={styles.value}>
+                {formatTime(task.startTime)} - {formatTime(task.endTime)}
+              </Text>
+            </View>
+          )}
         </View>
-        {task.startTime && task.endTime && <View style={styles.infoRow}>
-          <Text style={styles.label}>Время:</Text>
-          <Text style={styles.value}>{formatTime(task.startTime)} - {formatTime(task.endTime)}</Text>
-        </View>}
-        
-        {task.isMandatory && <Text style={styles.mandatory}>Обязательная задача</Text>}
+        {/* Тег размещён в самом низу блока */}
+        {task.isMeal && (
+          <View style={styles.nutrientsContainer}>
+            <Text style={[styles.nutrientText, { color: '#5CB85C' }]}>
+              Б: {Math.round(task.protein) || 0}
+            </Text>
+            <Text style={[styles.nutrientText, { color: '#F0AD4E' }]}>
+              Ж: {Math.round(task.fats) || 0}
+            </Text>
+            <Text style={[styles.nutrientText, { color: '#5BC0DE' }]}>
+              У: {Math.round(task.carbs) || 0}
+            </Text>
+            <Text style={[styles.nutrientText, { color: '#D9534F' }]}>
+              Ккал: {Math.round(task.calories) || 0}
+            </Text>
+          </View>
+        )}
+        {task.tag && <Text
+          style={[
+            styles.status,
+            { backgroundColor: "#FFE4E6" || 'transparent', color: '#660', fontWeight: 600 }
+          ]}
+        >
+          {task.tag}
+        </Text>}
       </View>
     </View>
   );
@@ -68,7 +99,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-    flexDirection: "row", // Горизонтальное размещение
+    flexDirection: "row", // Горизонтальное расположение изображения и текста
     alignItems: "center",
   },
   image: {
@@ -80,38 +111,18 @@ const styles = StyleSheet.create({
   textContainer: {
     flex: 1,
     flexDirection: "column",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
+    justifyContent: "space-between", // Раздвигаем содержимое так, чтобы тег оказался внизу
   },
   title: {
     fontSize: 16,
     fontWeight: "bold",
     color: "#333",
-    flex: 1, // Для переноса текста, если он длинный
-  },
-  status: {
-    fontSize: 14,
-    fontWeight: "600",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 5,
-  },
-  pending: {
-    backgroundColor: "#ffebcc",
-    color: "#b35900",
-  },
-  completed: {
-    backgroundColor: "#dff0d8",
-    color: "#3c763d",
+    marginBottom: 8,
   },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 4,
+    marginBottom: 8,
   },
   label: {
     fontSize: 14,
@@ -122,11 +133,22 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#333",
   },
-  mandatory: {
-    marginTop: 7,
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#c0392b",
+  status: {
+    fontSize: 14,
+    fontWeight: "600",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 5,
+    alignSelf: 'flex-start',
+  },
+  nutrientsContainer: {
+    flexDirection: 'row',
+    marginTop: 5,
+  },
+  nutrientText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    marginRight: 10,
   },
 });
 

@@ -30,8 +30,12 @@ const PlanStoreScreen = ({ route, navigation }) => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState([]);
-  console.log(currentDayTasks)
-  
+  const [mealsStatAll, setMealsStatAll] = useState({
+    fats: 0,
+    carbs: 0,
+    proteins: 0,
+    kcal: 0,
+  });
   const [planTitle, setPlanTitle] = useState('');
   const [planLikesCount, setPlanLikesCount] = useState(0);
   const [planImage, setPlanImage] = useState('');
@@ -40,7 +44,7 @@ const PlanStoreScreen = ({ route, navigation }) => {
   const [weekOffset, setWeekOffset] = useState(0);
   const [isUserHasOtherActivePlan, setIsUserHasOtherActivePlan] = useState(false);
   const [numberOfDaysForPlan, setNumberOfDaysForPlan] = useState(0);
-
+  const [isMealToday, setIsMealToday] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   // Модалка задачи
@@ -155,6 +159,26 @@ const PlanStoreScreen = ({ route, navigation }) => {
   };
 
   useEffect(() => {
+    let kcal = 0;
+    let proteins = 0;
+    let fats = 0;
+    let carbs = 0;
+
+    currentDayTasks.forEach((task) => {
+      if (task.calories && task.protein && task.fats && task.carbs && task.isMeal) {
+        kcal += task.calories;
+        proteins += task.protein;
+        fats += task.fats;
+        carbs += task.carbs;
+      }
+
+      setIsMealToday(true);
+    });
+
+    setMealsStatAll({ kcal, proteins, fats, carbs });
+  }, [currentDayTasks]);
+
+  useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
 
@@ -234,8 +258,39 @@ const PlanStoreScreen = ({ route, navigation }) => {
         {/* Список задач за выбранный день */}
         <View style={styles.taskList}>
           <Text style={styles.subtitle}>{currentDay} день</Text>
+          {isMealToday && mealsStatAll.kcal ? (
+            <View style={styles.planStatsContainer}>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>
+                  {mealsStatAll.proteins || 0}
+                </Text>
+                <Text style={[styles.statLabel, { color: '#5CB85C' }]}>Белки</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>
+                  {mealsStatAll.fats || 0}
+                </Text>
+                <Text style={[styles.statLabel, { color: '#F0AD4E' }]}>Жиры</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>
+                  {mealsStatAll.carbs || 0}
+                </Text>
+                <Text style={[styles.statLabel, { color: '#5BC0DE' }]}>Углеводы</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>
+                  {mealsStatAll.kcal || 0}
+                </Text>
+                <Text style={[styles.statLabel, { color: '#D9534F' }]}>Ккал</Text>
+              </View>
+            </View>
+          ) : null}
           <FlatList
-            data={currentDayTasks}
+            data={currentDayTasks.sort((a, b) => a.taskOrder - b.taskOrder)}
             renderItem={renderTaskItem}
             keyExtractor={(item) => item.taskId.toString()}
             scrollEnabled={false} // потому что мы уже в ScrollView
@@ -294,10 +349,10 @@ const PlanStoreScreen = ({ route, navigation }) => {
               />
             )}
             <Text style={styles.modalTitle}>
-              {selectedTask?.title || 'Задача'}
+              {selectedTask?.title}
             </Text>
             <Text style={styles.modalDescription}>
-              {selectedTask?.description || 'Подробное описание...'}
+              {selectedTask?.description}
             </Text>
             <TouchableOpacity
               style={[styles.modalButton, styles.cancelButton]}
@@ -317,7 +372,7 @@ export default PlanStoreScreen;
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#fff',
   },
   planHeader: {
     paddingHorizontal: 16,
@@ -327,10 +382,25 @@ const styles = StyleSheet.create({
   },
   planImage: {
     width: '100%',
-    height: 200,
+    height: 250,
     borderRadius: 8,
-    resizeMode: 'cover',
+    resizeMode: 'contain', // Сохраняет пропорции изображения
     marginBottom: 16,
+  },
+  statBox: { alignItems: 'center', justifyContent: 'center' },
+  planStatsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    marginBottom: 10,
+    padding: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
   },
   planTitle: {
     fontSize: 24,
@@ -362,6 +432,7 @@ const styles = StyleSheet.create({
   },
   item: {
     flex: 1,
+    maxWidth: 60,
     height: 50,
     marginHorizontal: 4,
     paddingVertical: 6,
@@ -381,7 +452,7 @@ const styles = StyleSheet.create({
   taskList: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    // backgroundColor: '#fff',
+    backgroundColor: '#fff',
   },
   subtitle: {
     fontSize: 17,
@@ -409,7 +480,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
-
+  statLabel: { marginTop: 3, fontSize: 14, color: '#555' },
+  divider: { width: 2, backgroundColor: '#eee', marginHorizontal: 8, height: '70%', alignSelf: 'center' },
+  statValue: { fontSize: 15, fontWeight: 'bold', color: '#333' },
   // Модалки
   modalOverlay: {
     flex: 1,
@@ -454,10 +527,10 @@ const styles = StyleSheet.create({
   },
   modalImage: {
     width: '100%',
-    height: 200,
+    height: 300,
     borderRadius: 8,
     marginBottom: 16,
-    resizeMode: 'cover',
+    resizeMode: 'contain',
   },
   modalTitle: {
     fontSize: 20,
